@@ -70,7 +70,10 @@ Plans:
   1. Re-invoking `/gsd:yolo` after an interruption (failure, crash, or manual stop) resumes from the next incomplete phase as determined by `roadmap analyze`, not from the original start phase
   2. Each phase transition displays a banner showing "YOLO mode active, phase N of M" so the user knows where the run stands
   3. On milestone completion, a summary shows which phases ran and what was accomplished
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — Add resume-after-failure logic to yolo.md A3 (three-branch stanza detection, YOLO RESUME banner)
+- [ ] 04-02-PLAN.md — Add progress banner to transition.md Route A and enriched completion summary to Route B
 
 ## Progress
 
@@ -82,4 +85,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. State Infrastructure | 0/2 | Complete    | 2026-02-17 |
 | 2. Launcher | 0/1 | Complete    | 2026-02-17 |
 | 3. Integration and Failure Hardening | 0/2 | Complete    | 2026-02-17 |
-| 4. Resume and Visibility | 0/TBD | Not started | - |
+| 4. Resume and Visibility | 0/2 | Not started | - |
