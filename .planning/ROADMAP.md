@@ -28,7 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The `yolo` stanza in `config.json` is present on disk after state write and survives a simulated context reset (re-read from file)
   3. The `yolo` stanza is removed from `config.json` after milestone completes or YOLO stops on failure
   4. Read-after-write verification confirms the stanza was not silently corrupted
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 01-01-PLAN.md — Add config-delete and yolo-state commands to gsd-tools.cjs
+- [ ] 01-02-PLAN.md — Tests and lifecycle verification for state commands
 
 ### Phase 2: Launcher
 **Goal**: Users can invoke `/gsd:yolo` with no arguments and the command validates prerequisites, writes YOLO state, and invokes the first plan-phase
@@ -70,7 +73,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. State Infrastructure | 0/TBD | Not started | - |
+| 1. State Infrastructure | 0/2 | Not started | - |
 | 2. Launcher | 0/TBD | Not started | - |
 | 3. Integration and Failure Hardening | 0/TBD | Not started | - |
 | 4. Resume and Visibility | 0/TBD | Not started | - |
