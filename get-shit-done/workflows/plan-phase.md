@@ -63,6 +63,19 @@ If `context_content` is not null, display: `Using phase context from: ${PHASE_DI
 
 **If `context_content` is null (no CONTEXT.md exists):**
 
+Check auto-advance config:
+```bash
+AUTO_CFG=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-get workflow.auto_advance 2>/dev/null || echo "false")
+```
+
+**If `--auto` flag present OR `AUTO_CFG` is `"true"`:**
+
+Display: `No CONTEXT.md — auto-continuing with research + requirements (YOLO mode)`
+
+Proceed to step 5. Do NOT use AskUserQuestion.
+
+**Otherwise (interactive mode):**
+
 Use AskUserQuestion:
 - header: "No context"
 - question: "No CONTEXT.md found for Phase {X}. Plans will use research and requirements only — your design preferences won't be included. Continue or capture context first?"

@@ -368,29 +368,15 @@ ls .planning/phases/*[X+1]*/*-CONTEXT.md 2>/dev/null
 
 <if mode="yolo">
 
-**If CONTEXT.md exists:**
-
 ```
 Phase [X] marked complete.
 
 Next: Phase [X+1] — [Name]
 
-⚡ Auto-continuing: Plan Phase [X+1] in detail
+⚡ Auto-continuing: Plan Phase [X+1]
 ```
 
 Exit skill and invoke SlashCommand("/gsd:plan-phase [X+1] --auto")
-
-**If CONTEXT.md does NOT exist:**
-
-```
-Phase [X] marked complete.
-
-Next: Phase [X+1] — [Name]
-
-⚡ Auto-continuing: Discuss Phase [X+1] first
-```
-
-Exit skill and invoke SlashCommand("/gsd:discuss-phase [X+1] --auto")
 
 </if>
 
