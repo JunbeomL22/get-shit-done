@@ -63,22 +63,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STATE-01 | Pending | Pending |
-| STATE-02 | Pending | Pending |
-| STATE-03 | Pending | Pending |
-| STATE-04 | Pending | Pending |
-| CHAIN-01 | Pending | Pending |
-| CHAIN-02 | Pending | Pending |
-| CHAIN-03 | Pending | Pending |
-| FAIL-01 | Pending | Pending |
-| FAIL-02 | Pending | Pending |
-| MILE-01 | Pending | Pending |
+| STATE-01 | Phase 1 | Pending |
+| STATE-02 | Phase 1 | Pending |
+| STATE-03 | Phase 1 | Pending |
+| STATE-04 | Phase 4 | Pending |
+| CHAIN-01 | Phase 2 | Pending |
+| CHAIN-02 | Phase 3 | Pending |
+| CHAIN-03 | Phase 2 | Pending |
+| FAIL-01 | Phase 3 | Pending |
+| FAIL-02 | Phase 3 | Pending |
+| MILE-01 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-17*
-*Last updated: 2026-02-17 after initial definition*
+*Last updated: 2026-02-17 after roadmap creation*
