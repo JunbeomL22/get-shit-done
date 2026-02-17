@@ -89,6 +89,111 @@ If the user selects "Abort", stop. Do not proceed.
 
 If `YOLO_ACTIVE` is "false" AND `YOLO_FAILED` is non-empty:
 
+Read the failure reason to determine which sub-branch to take:
+
+```bash
+YOLO_REASON=$(echo "$YOLO_JSON" | jq -r '.failure_reason // "unknown"')
+```
+
+Evaluate in order (check 3a before 3b to prevent infinite loops):
+
+**Branch 3a: Prior gap closure already failed** — `YOLO_REASON` contains "gap closure failed".
+
+If `YOLO_REASON` contains "gap closure failed":
+
+Display permanent stop banner:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO STOPPED — Manual Intervention Required
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Gap closure was attempted on Phase ${YOLO_FAILED} and failed.
+Automatic recovery has been exhausted (one attempt limit).
+
+To resolve manually:
+1. Review: .planning/phases/${PADDED}-*/VERIFICATION.md
+2. Fix the gaps manually
+3. Clear state: run `yolo-state clear`
+4. Re-run: `/gsd:yolo`
+```
+
+Stop. Do not proceed.
+
+**Branch 3b: Gaps found — enter auto gap-closure mode** — `YOLO_REASON` contains "gaps" (but NOT "gap closure failed").
+
+If `YOLO_REASON` contains "gaps" (and Branch 3a did not match):
+
+Display YOLO GAP CLOSURE banner:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO GAP CLOSURE — Phase ${YOLO_FAILED}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Auto-detected verification gaps on Phase ${YOLO_FAILED}.
+Creating targeted fix plans and executing...
+```
+
+Run gap closure:
+
+1. Clear the stale stanza: `node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state clear`
+2. Spawn gap closure as a subagent Task:
+
+```
+Task(
+  prompt="Run /gsd:plan-phase ${YOLO_FAILED} --gaps --auto",
+  subagent_type="general-purpose",
+  description="YOLO: Gap closure for Phase ${YOLO_FAILED}"
+)
+```
+
+3. After Task() returns, re-read roadmap state from disk (do NOT parse Task() return text):
+
+```bash
+ANALYZE=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap analyze 2>/dev/null)
+```
+
+4. Check if Phase YOLO_FAILED now has `roadmap_complete == true`:
+
+```bash
+GAP_PHASE_DONE=$(echo "$ANALYZE" | jq -r --argjson phase "$YOLO_FAILED" '
+  .phases[] | select(.number == $phase) | .roadmap_complete
+')
+```
+
+If `GAP_PHASE_DONE` is "true": gap closure succeeded. Set `NEXT_PHASE` from `roadmap analyze .next_phase`. If `NEXT_PHASE` is empty, all phases done — display completion and stop. Otherwise set `PHASES_REMAINING=$((TOTAL - COMPLETED))` using updated ANALYZE values, then proceed to Phase B to continue chaining remaining phases.
+
+If `GAP_PHASE_DONE` is NOT "true": gap closure failed. Write permanent failure state:
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state fail --phase "${YOLO_FAILED}" --reason "gap closure failed — manual intervention required"
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance false
+```
+
+Display YOLO GAP CLOSURE FAILED banner:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO GAP CLOSURE FAILED — Phase ${YOLO_FAILED}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Gap closure attempt on Phase ${YOLO_FAILED} did not resolve all gaps.
+Automatic recovery exhausted (one attempt limit).
+
+To resolve manually:
+1. Review: .planning/phases/${PADDED}-*/VERIFICATION.md
+2. Fix the gaps manually
+3. Clear state: run `yolo-state clear`
+4. Re-run: `/gsd:yolo`
+```
+
+Stop permanently. Do not proceed.
+
+**Branch 3c: Other failure reason** — `YOLO_REASON` does NOT contain "gaps".
+
+If `YOLO_REASON` does not contain "gaps" (Branches 3a and 3b did not match):
+
 Get the authoritative resume position from roadmap:
 
 ```bash

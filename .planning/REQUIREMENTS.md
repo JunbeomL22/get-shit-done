@@ -12,7 +12,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **STATE-01**: YOLO session state written to config.json (active flag, start phase, timestamp)
 - [x] **STATE-02**: YOLO state survives `/clear` by reading from disk on each invocation
 - [x] **STATE-03**: YOLO state cleaned up on milestone complete or failure stop
-- [ ] **STATE-04**: Re-running `/gsd:yolo` after interruption resumes from correct phase position
+- [x] **STATE-04**: Re-running `/gsd:yolo` after interruption resumes from correct phase position
 
 ### Chain Orchestration
 
@@ -22,8 +22,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Failure Handling
 
-- [ ] **FAIL-01**: YOLO hard-stops when verification finds gaps (requirements not met)
-- [ ] **FAIL-02**: On stop, user sees which phase failed, what went wrong, and how to recover
+- [x] **FAIL-01**: YOLO hard-stops when verification finds gaps (requirements not met)
+- [x] **FAIL-02**: On stop, user sees which phase failed, what went wrong, and how to recover
 
 ### Milestone Boundary
 
@@ -66,18 +66,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STATE-01 | Phase 1 | Satisfied |
 | STATE-02 | Phase 1 | Satisfied |
 | STATE-03 | Phase 1 | Satisfied |
-| STATE-04 | Phase 5 (gap closure) | Pending |
+| STATE-04 | Phase 5 (gap closure) | Satisfied |
 | CHAIN-01 | Phase 2 | Satisfied |
 | CHAIN-02 | Phase 3 | Satisfied |
 | CHAIN-03 | Phase 2 | Satisfied |
-| FAIL-01 | Phase 5 (gap closure) | Pending |
-| FAIL-02 | Phase 5 (gap closure) | Pending |
+| FAIL-01 | Phase 5 (gap closure) | Satisfied |
+| FAIL-02 | Phase 5 (gap closure) | Satisfied |
 | MILE-01 | Phase 3 | Satisfied |
 
 **Coverage:**
 - v1 requirements: 10 total
-- Satisfied: 7
-- Pending (gap closure): 3 (FAIL-01, FAIL-02, STATE-04 → Phase 5)
+- Satisfied: 10
+- Pending: 0
 - Unmapped: 0 ✓
 
 ---
