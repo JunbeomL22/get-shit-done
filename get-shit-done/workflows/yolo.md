@@ -65,7 +65,15 @@ YOLO_JSON=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state read --raw
 YOLO_ACTIVE=$(echo "$YOLO_JSON" | jq -r '.active // false')
 YOLO_START=$(echo "$YOLO_JSON" | jq -r '.start_phase // "?"')
 YOLO_TS=$(echo "$YOLO_JSON" | jq -r '.timestamp // ""')
+YOLO_FAILED=$(echo "$YOLO_JSON" | jq -r '.failed_phase // empty')
+YOLO_REASON=$(echo "$YOLO_JSON" | jq -r '.failure_reason // "unknown"')
 ```
+
+Three mutually exclusive stanza states — evaluate in order:
+
+**Branch 1: No stanza** — `YOLO_JSON` is `{}` (no active, no failed_phase). Normal launch. Skip A3 and proceed.
+
+**Branch 2: Active run (stale)** — `YOLO_ACTIVE` is "true".
 
 If `YOLO_ACTIVE` is "true", use AskUserQuestion to ask:
 
@@ -74,6 +82,41 @@ If `YOLO_ACTIVE` is "true", use AskUserQuestion to ask:
 Options:
 1. "Clear and start fresh" — run `node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state clear` then proceed to Phase B
 2. "Abort" — stop workflow
+
+If the user selects "Abort", stop. Do not proceed.
+
+**Branch 3: Prior failed run** — `YOLO_ACTIVE` is "false" AND `YOLO_FAILED` is non-empty.
+
+If `YOLO_ACTIVE` is "false" AND `YOLO_FAILED` is non-empty:
+
+Get the authoritative resume position from roadmap:
+
+```bash
+ANALYZE=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap analyze 2>/dev/null)
+RESUME_PHASE=$(echo "$ANALYZE" | jq -r '.next_phase // empty')
+TOTAL=$(echo "$ANALYZE" | jq -r '.phase_count')
+COMPLETED=$(echo "$ANALYZE" | jq -r '.completed_phases')
+```
+
+Display YOLO RESUME banner:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO RESUME
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Previous run stopped at phase ${YOLO_FAILED} (${YOLO_REASON}).
+Completed phases: ${COMPLETED} of ${TOTAL}
+
+Next incomplete phase: ${RESUME_PHASE}
+```
+
+Use AskUserQuestion: "Resume from phase ${RESUME_PHASE}?"
+
+Options:
+1. "Resume" — run `node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state clear`, set `NEXT_PHASE="${RESUME_PHASE}"` and `PHASES_REMAINING=$((TOTAL - COMPLETED))`, then proceed to Phase B
+2. "Start fresh" — run `node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state clear`, then proceed to Phase B (Phase B uses NEXT_PHASE from A2 variables already set above)
+3. "Abort" — stop workflow
 
 If the user selects "Abort", stop. Do not proceed.
 
@@ -263,7 +306,6 @@ Stop. Do NOT auto-retry.
 
 **Constraints:**
 - Do NOT use `config-set` on `workflow.research`, `workflow.plan_check`, or `workflow.verifier`
-- Do NOT implement resume logic (Phase 4 scope)
 - Do NOT parse Task() return text for chain outcome detection — always use disk state (roadmap analyze, yolo-state read, VERIFICATION.md)
 
 </process>
