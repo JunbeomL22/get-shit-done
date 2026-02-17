@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** One command runs all remaining phases to completion, stopping only when something fails.
-**Current focus:** Phase 3 — Integration and Failure Hardening
+**Current focus:** Phase 4 — Resume and Visibility
 
 ## Current Position
 
-Phase: 3 of 4 (Integration and Failure Hardening)
-Plan: 3 of 3 in current phase
-Status: Plan 03 complete — Phase 3 complete (all 3 plans done)
-Last activity: 2026-02-17 — Plan 03-03 executed (FAIL-02 gap closure: Case B1 STOPPED banner resume hint)
+Phase: 4 of 4 (Resume and Visibility)
+Plan: 1 of 2 in current phase
+Status: Plan 01 complete — A3 resume branch added to yolo.md (STATE-04)
+Last activity: 2026-02-17 — Plan 04-01 executed (YOLO resume logic: A3 three-branch stanza detection)
 
-Progress: [█████░░░░░] 50%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -30,9 +30,10 @@ Progress: [█████░░░░░] 50%
 | 01-state-infrastructure | 2 | 7 min | 3.5 min |
 | 02-launcher | 1 | 3 min | 3 min |
 | 03-integration-and-failure-hardening | 3 | 5 min | 1.7 min |
+| 04-resume-and-visibility | 1 (of 2) | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3 min), 03-01 (2 min), 03-02 (2 min), 03-03 (1 min)
+- Last 5 plans: 02-01 (3 min), 03-01 (2 min), 03-02 (2 min), 03-03 (1 min), 04-01 (1 min)
 - Trend: Steady
 
 *Updated after each plan completion*
@@ -64,6 +65,8 @@ Recent decisions affecting current work:
 - [Phase 03-02]: Case B1 vs B2 split by VERIFICATION.md presence + gaps_found status — distinct banners: phase+gaps vs manual investigation
 - [Phase 03-02]: Yolo stanza preserved on failure (active:false via yolo-state fail) so Phase 4 resume knows where chain stopped
 - [Phase 03]: FAIL-02 gap closure: minimal 'To investigate' hint added to Case B1 banner — not a full resume command (Phase 4 scope)
+- [Phase 04-01]: Resume position uses roadmap analyze next_phase (not stanza failed_phase) — roadmap analyze is single source of truth per SC-1
+- [Phase 04-01]: A3 three-branch detection order: Branch 1 (no stanza), Branch 2 (active=true stale), Branch 3 (active=false+failed_phase resume)
 
 ### Pending Todos
 
@@ -77,5 +80,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 03-03-PLAN.md (FAIL-02 gap closure: Case B1 STOPPED banner resume hint + ROADMAP SC3 alignment)
-Resume file: .planning/phases/03-integration-and-failure-hardening/03-03-SUMMARY.md
+Stopped at: Completed 04-01-PLAN.md (yolo.md A3 three-branch stanza detection: resume-after-failure with YOLO RESUME banner)
+Resume file: .planning/phases/04-resume-and-visibility/04-01-SUMMARY.md
