@@ -235,7 +235,43 @@ Stop. Return to user.
 
 Condition: `ALL_DONE` is false (next_phase exists). The chain stopped before completing all phases.
 
-Determine the stopped phase: `STOPPED_PHASE` = the value of `next_phase` from roadmap analyze. This is the phase that did NOT complete.
+Determine the stopped phase by scanning the phases array for the first phase with `disk_status == "complete"` AND `roadmap_complete == false`. This uniquely identifies a phase where all plans executed (SUMMARYs written) but verification failed (phase complete never called).
+
+```bash
+STOPPED_PHASE=$(echo "$ANALYZE" | jq -r '
+  .phases[]
+  | select(.disk_status == "complete" and .roadmap_complete == false)
+  | .number
+' | head -1)
+```
+
+Fallback: if no phase matches (unexpected stop before summaries were written), use `next_phase`:
+
+```bash
+if [ -z "$STOPPED_PHASE" ]; then
+  STOPPED_PHASE=$(echo "$ANALYZE" | jq -r '.next_phase // empty')
+fi
+```
+
+Compute session summary for display:
+
+```bash
+COMPLETED=$(echo "$ANALYZE" | jq -r '.completed_phases')
+TOTAL=$(echo "$ANALYZE" | jq -r '.phase_count')
+
+# Elapsed time from YOLO stanza timestamp (read in C1 as YOLO_STATE)
+YOLO_TS=$(echo "$YOLO_STATE" | jq -r '.timestamp // ""')
+START_EPOCH=$(date -d "$YOLO_TS" +%s 2>/dev/null)
+if [ -n "$START_EPOCH" ]; then
+  NOW_EPOCH=$(date +%s)
+  ELAPSED_SECS=$((NOW_EPOCH - START_EPOCH))
+  ELAPSED_MINS=$((ELAPSED_SECS / 60))
+  ELAPSED_SECS_REM=$((ELAPSED_SECS % 60))
+  ELAPSED="${ELAPSED_MINS}m ${ELAPSED_SECS_REM}s"
+else
+  ELAPSED="unknown"
+fi
+```
 
 Check for VERIFICATION.md to distinguish verification failure from unexpected error:
 
@@ -251,19 +287,21 @@ Condition: `VERIFY_FILE` exists AND contains `status: gaps_found` (or similar in
 
 Read the "What's Missing" or gaps section from VERIFICATION.md for display. Present the section verbatim — do not parse individual gap fields.
 
-Write failure state (preserve yolo stanza for Phase 4 resume):
+Write failure state (preserve yolo stanza for resume):
 
 ```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state fail --phase "${STOPPED_PHASE}" --reason "verification gaps found"
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state fail --phase "${STOPPED_PHASE}" --reason "verification gaps found on phase ${STOPPED_PHASE}"
 node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance false
 ```
 
-Display YOLO STOPPED banner (locked decision: show phase number + gaps, minimal resume hint per amended decision):
+Display YOLO STOPPED banner (show phase number + session summary + gaps + investigation hint):
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  GSD ► YOLO STOPPED — Phase {STOPPED_PHASE}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Session: {COMPLETED} of {TOTAL} phases completed — {ELAPSED} elapsed
 
 Verification failed: Phase {STOPPED_PHASE} has unmet requirements.
 
