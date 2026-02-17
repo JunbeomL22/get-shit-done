@@ -56,7 +56,10 @@ Plans:
   3. On stop, the user sees the phase number that failed, the specific gaps reported, and the command to resume after fixing
   4. YOLO stops after the last phase in the milestone and does not chain into the next milestone
   5. The `workflow.auto_advance` flag is not prematurely cleared by transition.md while a YOLO run is active
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — Wire plan-phase auto-skip and transition.md Route A/B for YOLO chain
+- [ ] 03-02-PLAN.md — Extend yolo.md Phase C with chain result analysis and failure display
 
 ### Phase 4: Resume and Visibility
 **Goal**: Interrupted YOLO sessions resume from the correct position and users see progress at each phase transition
@@ -77,5 +80,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. State Infrastructure | 0/2 | Complete    | 2026-02-17 |
 | 2. Launcher | 0/1 | Complete    | 2026-02-17 |
-| 3. Integration and Failure Hardening | 0/TBD | Not started | - |
+| 3. Integration and Failure Hardening | 0/2 | Not started | - |
 | 4. Resume and Visibility | 0/TBD | Not started | - |
