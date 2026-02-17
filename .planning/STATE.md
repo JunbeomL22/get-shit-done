@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** One command runs all remaining phases to completion, stopping only when something fails.
-**Current focus:** Phase 4 — Resume and Visibility (complete)
+**Current focus:** Phase 5 — Fix STOPPED_PHASE Detection (complete)
 
 ## Current Position
 
-Phase: 4 of 4 (Resume and Visibility)
-Plan: 2 of 2 in current phase
-Status: Plan 02 complete — Phase 4 complete (all 2 plans done)
-Last activity: 2026-02-17 — Plan 04-02 executed (YOLO progress banner + enriched completion summary in transition.md)
+Phase: 5 of 5 (Fix STOPPED_PHASE Detection)
+Plan: 1 of 1 in current phase
+Status: Plan 01 complete — Phase 5 complete (all 1 plan done)
+Last activity: 2026-02-17 — Plan 05-01 executed (STOPPED_PHASE fix, B1 session summary, A3 auto gap-closure, /gsd:yolo command installed)
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 2.4 min
-- Total execution time: 0.31 hours
+- Total plans completed: 9
+- Average duration: 2.6 min
+- Total execution time: 0.37 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [██████████] 100%
 | 02-launcher | 1 | 3 min | 3 min |
 | 03-integration-and-failure-hardening | 3 | 5 min | 1.7 min |
 | 04-resume-and-visibility | 2 | 4 min | 2 min |
+| 05-fix-stopped-phase-detection | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (2 min), 03-02 (2 min), 03-03 (1 min), 04-01 (3 min), 04-02 (1 min)
+- Last 5 plans: 03-02 (2 min), 03-03 (1 min), 04-01 (3 min), 04-02 (1 min), 05-01 (3 min)
 - Trend: Steady
 
 *Updated after each plan completion*
@@ -69,6 +70,9 @@ Recent decisions affecting current work:
 - [Phase 04-01]: A3 three-branch detection order: Branch 1 (no stanza), Branch 2 (active=true stale), Branch 3 (active=false+failed_phase resume)
 - [Phase 04-02]: roadmap analyze called in offer_next_phase step (after phase complete) — completed_phases reflects the just-finished phase
 - [Phase 04-02]: Route B YOLO COMPLETE phase summary table sourced from roadmap analyze phases array — no per-SUMMARY.md reads
+- [Phase 05-fix-stopped-phase-detection]: STOPPED_PHASE derivation: scan phases array for disk_status=complete AND roadmap_complete=false (not next_phase) — uniquely identifies phase where SUMMARYs written but phase complete never called
+- [Phase 05-fix-stopped-phase-detection]: A3 Branch 3a evaluated before 3b to prevent gap-closure infinite loop — 'gap closure failed' substring is the one-attempt sentinel
+- [Phase 05-fix-stopped-phase-detection]: Gap closure via Task(plan-phase --gaps --auto) then re-read roadmap_complete from disk — never parse Task() return text
 
 ### Pending Todos
 
@@ -76,10 +80,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — all phases complete. Milestone v1.0 is done.
+None — all phases complete. Milestone v1.0 gap closure done. All 10/10 v1 requirements satisfied.
 
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-02-PLAN.md (YOLO progress banner + enriched completion summary) — milestone v1.0 fully complete
-Resume file: .planning/phases/04-resume-and-visibility/04-02-SUMMARY.md
+Stopped at: Completed 05-01-PLAN.md (STOPPED_PHASE fix, B1 session summary, A3 auto gap-closure, /gsd:yolo command installed) — all v1 requirements 10/10 satisfied
+Resume file: .planning/phases/05-fix-stopped-phase-detection/05-01-SUMMARY.md
