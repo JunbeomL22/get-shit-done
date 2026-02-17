@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** One command runs all remaining phases to completion, stopping only when something fails.
-**Current focus:** Phase 2 — Launcher
+**Current focus:** Phase 3 — Integration and Failure Hardening
 
 ## Current Position
 
-Phase: 2 of 4 (Launcher)
+Phase: 3 of 4 (Integration and Failure Hardening)
 Plan: 1 of TBD in current phase
 Status: Plan 01 complete
-Last activity: 2026-02-17 — Plan 02-01 executed (/gsd:yolo command and workflow)
+Last activity: 2026-02-17 — Plan 03-01 executed (YOLO chain integration: plan-phase auto-skip + transition Route A/B yolo)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3.3 min
-- Total execution time: 0.17 hours
+- Total plans completed: 4
+- Average duration: 3 min
+- Total execution time: 0.20 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [███░░░░░░░] 30%
 |-------|-------|-------|----------|
 | 01-state-infrastructure | 2 | 7 min | 3.5 min |
 | 02-launcher | 1 | 3 min | 3 min |
+| 03-integration-and-failure-hardening | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (5 min), 02-01 (3 min)
-- Trend: -
+- Last 5 plans: 01-01 (2 min), 01-02 (5 min), 02-01 (3 min), 03-01 (2 min)
+- Trend: Steady
 
 *Updated after each plan completion*
 
@@ -56,6 +57,9 @@ Recent decisions affecting current work:
 - State writes ordered: mode -> auto_advance -> yolo stanza (stanza is point-of-no-return sentinel) (02-01)
 - YOLO reads workflow agents for display only, never overrides them (CHAIN-03) (02-01)
 - Stale state prompts user to clear or abort; resume logic deferred to Phase 4 (02-01)
+- [Phase 03]: Route A yolo removes CONTEXT.md check because plan-phase Step 4 now owns that gate internally
+- [Phase 03]: Route B yolo stops with YOLO COMPLETE banner instead of invoking complete-milestone — user controls archival
+- [Phase 03]: yolo-state clear runs inside yolo block only; auto_advance false runs unconditionally above for all modes
 
 ### Pending Todos
 
@@ -64,10 +68,10 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 3: The `classifyHandoffIfNeeded` false-positive detection requires reading CONCERNS.md and the execute-phase spot-check protocol carefully before implementing. The boundary between "agent error" and "work actually failed" is subtle.
-- Phase 3: The `auto_advance` guard addition in transition.md needs careful implementation to avoid breaking existing `--auto` behavior for non-YOLO invocations.
+- Phase 3 (03-01 resolved): The `auto_advance` guard in plan-phase Step 4 is now implemented and matches the existing Step 14 pattern — non-YOLO behavior unchanged.
 
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 02-01-PLAN.md (/gsd:yolo command and workflow, 2 new files)
-Resume file: .planning/phases/02-launcher/02-01-SUMMARY.md
+Stopped at: Completed 03-01-PLAN.md (YOLO chain integration: plan-phase auto-skip + transition Route A/B yolo)
+Resume file: .planning/phases/03-integration-and-failure-hardening/03-01-SUMMARY.md
