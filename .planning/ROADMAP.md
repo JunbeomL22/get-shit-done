@@ -53,13 +53,14 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. A YOLO run started on a milestone with two remaining phases completes both phases automatically without manual intervention
   2. When `verify-work` reports unmet requirements, YOLO stops immediately and does not advance to the next phase
-  3. On stop, the user sees the phase number that failed, the specific gaps reported, and the command to resume after fixing
+  3. On stop, the user sees the phase number that failed, the specific gaps reported, and how to investigate
   4. YOLO stops after the last phase in the milestone and does not chain into the next milestone
   5. The `workflow.auto_advance` flag is not prematurely cleared by transition.md while a YOLO run is active
-**Plans**: 2 plans
+**Plans**: 3 plans
 Plans:
 - [ ] 03-01-PLAN.md — Wire plan-phase auto-skip and transition.md Route A/B for YOLO chain
 - [ ] 03-02-PLAN.md — Extend yolo.md Phase C with chain result analysis and failure display
+- [ ] 03-03-PLAN.md — Gap closure: add resume hint to STOPPED banner and update SC3 wording (FAIL-02)
 
 ### Phase 4: Resume and Visibility
 **Goal**: Interrupted YOLO sessions resume from the correct position and users see progress at each phase transition
