@@ -9,16 +9,16 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### State Persistence
 
-- [ ] **STATE-01**: YOLO session state written to config.json (active flag, start phase, timestamp)
-- [ ] **STATE-02**: YOLO state survives `/clear` by reading from disk on each invocation
-- [ ] **STATE-03**: YOLO state cleaned up on milestone complete or failure stop
+- [x] **STATE-01**: YOLO session state written to config.json (active flag, start phase, timestamp)
+- [x] **STATE-02**: YOLO state survives `/clear` by reading from disk on each invocation
+- [x] **STATE-03**: YOLO state cleaned up on milestone complete or failure stop
 - [ ] **STATE-04**: Re-running `/gsd:yolo` after interruption resumes from correct phase position
 
 ### Chain Orchestration
 
-- [ ] **CHAIN-01**: User can invoke `/gsd:yolo` with no args to run all remaining phases
-- [ ] **CHAIN-02**: Each phase runs plan → execute → verify → advance automatically
-- [ ] **CHAIN-03**: YOLO respects config.json workflow agents (research, plan-check, verifier)
+- [x] **CHAIN-01**: User can invoke `/gsd:yolo` with no args to run all remaining phases
+- [x] **CHAIN-02**: Each phase runs plan → execute → verify → advance automatically
+- [x] **CHAIN-03**: YOLO respects config.json workflow agents (research, plan-check, verifier)
 
 ### Failure Handling
 
@@ -27,7 +27,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Milestone Boundary
 
-- [ ] **MILE-01**: YOLO stops after the last phase completes (does not chain into next milestone)
+- [x] **MILE-01**: YOLO stops after the last phase completes (does not chain into next milestone)
 
 ## v2 Requirements
 
@@ -63,22 +63,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STATE-01 | Phase 1 | Pending |
-| STATE-02 | Phase 1 | Pending |
-| STATE-03 | Phase 1 | Pending |
-| STATE-04 | Phase 4 | Pending |
-| CHAIN-01 | Phase 2 | Pending |
-| CHAIN-02 | Phase 3 | Pending |
-| CHAIN-03 | Phase 2 | Pending |
-| FAIL-01 | Phase 3 | Pending |
-| FAIL-02 | Phase 3 | Pending |
-| MILE-01 | Phase 3 | Pending |
+| STATE-01 | Phase 1 | Satisfied |
+| STATE-02 | Phase 1 | Satisfied |
+| STATE-03 | Phase 1 | Satisfied |
+| STATE-04 | Phase 5 (gap closure) | Pending |
+| CHAIN-01 | Phase 2 | Satisfied |
+| CHAIN-02 | Phase 3 | Satisfied |
+| CHAIN-03 | Phase 2 | Satisfied |
+| FAIL-01 | Phase 5 (gap closure) | Pending |
+| FAIL-02 | Phase 5 (gap closure) | Pending |
+| MILE-01 | Phase 3 | Satisfied |
 
 **Coverage:**
 - v1 requirements: 10 total
-- Mapped to phases: 10
+- Satisfied: 7
+- Pending (gap closure): 3 (FAIL-01, FAIL-02, STATE-04 → Phase 5)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-17*
-*Last updated: 2026-02-17 after roadmap creation*
+*Last updated: 2026-02-17 after gap closure phase creation*

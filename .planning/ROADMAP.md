@@ -16,6 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Launcher** - `/gsd:yolo` command and workflow exists and initializes the chain (completed 2026-02-17)
 - [x] **Phase 3: Integration and Failure Hardening** - Full chain runs across phases and stops reliably on failure (completed 2026-02-17)
 - [x] **Phase 4: Resume and Visibility** - Interrupted YOLO sessions resume correctly and progress is visible (completed 2026-02-17)
+- [ ] **Phase 5: Fix STOPPED_PHASE Detection** - YOLO correctly identifies the failed phase after gaps_found and resumes from the right position (gap closure)
 
 ## Phase Details
 
@@ -75,10 +76,25 @@ Plans:
 - [ ] 04-01-PLAN.md — Add resume-after-failure logic to yolo.md A3 (three-branch stanza detection, YOLO RESUME banner)
 - [ ] 04-02-PLAN.md — Add progress banner to transition.md Route A and enriched completion summary to Route B
 
+### Phase 5: Fix STOPPED_PHASE Detection
+**Goal**: YOLO correctly identifies the failed phase after `gaps_found` verification failure, shows the correct banner (B1 not B2), and resumes from the right position
+**Depends on**: Phase 3, Phase 4
+**Requirements**: FAIL-01, FAIL-02, STATE-04
+**Gap Closure:** Closes all gaps from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. When verification finds `gaps_found` on Phase N, yolo.md C2 correctly identifies Phase N (not N+1) as the stopped phase
+  2. Case B1 fires (not B2) showing the actual verification gaps and "To investigate" hint
+  3. `yolo-state fail` records the correct failed phase number in the stanza
+  4. Re-invoking `/gsd:yolo` after a `gaps_found` failure shows YOLO RESUME banner with the correct failed phase and resumes from the right position
+  5. `/gsd:yolo` command is registered and invocable (installed to `~/.claude/commands/gsd/`)
+**Plans**: 1 plan
+Plans:
+- [ ] 05-01-PLAN.md — Fix STOPPED_PHASE derivation in yolo.md C2 + install command + update requirements checkboxes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -86,3 +102,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. Launcher | 0/1 | Complete    | 2026-02-17 |
 | 3. Integration and Failure Hardening | 0/2 | Complete    | 2026-02-17 |
 | 4. Resume and Visibility | 0/2 | Complete    | 2026-02-17 |
+| 5. Fix STOPPED_PHASE Detection | 0/1 | Pending    | — |
