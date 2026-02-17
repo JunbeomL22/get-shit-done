@@ -368,12 +368,20 @@ ls .planning/phases/*[X+1]*/*-CONTEXT.md 2>/dev/null
 
 <if mode="yolo">
 
+```bash
+PROGRESS=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap analyze 2>/dev/null)
+COMPLETED_NOW=$(echo "$PROGRESS" | jq -r '.completed_phases')
+TOTAL_PHASES=$(echo "$PROGRESS" | jq -r '.phase_count')
 ```
-Phase [X] marked complete.
 
-Next: Phase [X+1] — [Name]
+Display progress banner:
 
-⚡ Auto-continuing: Plan Phase [X+1]
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO MODE ACTIVE — Phase {COMPLETED_NOW} of {TOTAL_PHASES}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Phase {completed_phase} complete. Advancing to Phase {next_phase}: {next_phase_name}
 ```
 
 Exit skill and invoke SlashCommand("/gsd:plan-phase [X+1] --auto")
@@ -449,14 +457,25 @@ Clean up YOLO state (milestone is complete):
 node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state clear
 ```
 
-Display completion banner:
+Gather phase summary data:
+```bash
+SUMMARY=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap analyze 2>/dev/null)
+```
+
+Display completion banner with phase summary table:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  GSD ► YOLO COMPLETE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 All {N} phases complete. Milestone done.
+
+| Phase | Name | Plans |
+|-------|------|-------|
+{for each phase in phases array: | {number} | {name} | {plan_count} plan(s) |}
 ```
+
+Where `{N}` is `phase_count` from roadmap analyze, and each row comes from the `phases` array entries (fields: `number`, `name`, `plan_count`).
 
 Stop. Return to user. Do NOT invoke complete-milestone — the user reviews and archives at their discretion.
 
