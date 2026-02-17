@@ -215,7 +215,7 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state fail --phase "${STOPPE
 node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance false
 ```
 
-Display YOLO STOPPED banner (locked decision: show phase number + gaps, NO resume command):
+Display YOLO STOPPED banner (locked decision: show phase number + gaps, minimal resume hint per amended decision):
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -228,6 +228,7 @@ Verification failed: Phase {STOPPED_PHASE} has unmet requirements.
 {gaps section from VERIFICATION.md}
 
 YOLO state preserved. See {VERIFY_FILE} for full report.
+To investigate: `/gsd:plan-phase {STOPPED_PHASE} --gaps`
 ```
 
 Stop. Do NOT auto-retry.
