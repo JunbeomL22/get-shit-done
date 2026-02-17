@@ -42,7 +42,9 @@ Plans:
   2. The command checks prerequisites (roadmap exists, current phase is valid, no stale YOLO state) before doing anything
   3. The command sets `mode: "yolo"`, `workflow.auto_advance: true`, and writes the `yolo` stanza before invoking `plan-phase`
   4. The YOLO run respects config.json workflow agents (research, plan-check, verifier) without overriding them
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 02-01-PLAN.md — Create /gsd:yolo command and workflow (prerequisite checks, state setup, plan-phase launch)
 
 ### Phase 3: Integration and Failure Hardening
 **Goal**: The full plan→execute→verify→advance chain runs automatically across all remaining phases and stops hard when verification finds gaps
@@ -74,6 +76,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. State Infrastructure | 0/2 | Complete    | 2026-02-17 |
-| 2. Launcher | 0/TBD | Not started | - |
+| 2. Launcher | 0/1 | Not started | - |
 | 3. Integration and Failure Hardening | 0/TBD | Not started | - |
 | 4. Resume and Visibility | 0/TBD | Not started | - |
