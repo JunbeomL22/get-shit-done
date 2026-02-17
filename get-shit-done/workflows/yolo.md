@@ -138,7 +138,7 @@ Display confirmation: "◆ YOLO state written — launching phase ${NEXT_PHASE}.
 
 ---
 
-## Phase C: Launch
+## Phase C: Launch and Monitor
 
 Spawn plan-phase as a subagent Task with `--auto` flag to propagate the auto-advance chain:
 
@@ -146,38 +146,123 @@ Spawn plan-phase as a subagent Task with `--auto` flag to propagate the auto-adv
 Task(
   prompt="Run /gsd:plan-phase ${NEXT_PHASE} --auto",
   subagent_type="general-purpose",
-  description="Plan Phase ${NEXT_PHASE}"
+  description="YOLO: Phase ${NEXT_PHASE}"
 )
 ```
 
-**Handle return values:**
+### C1. Post-Chain State Analysis
 
-- If plan-phase returns `## PLANNING COMPLETE` or phase execution succeeds:
-  Display a summary of what was accomplished. The chain handles itself from here (plan-phase auto-advances to execute-phase, execute-phase auto-advances via transition.md).
+After Task() returns, determine what happened by reading disk state. Do NOT parse the Task() return text — it is unreliable across different chain termination points.
 
-- If plan-phase returns `## PLANNING INCONCLUSIVE` or any failure:
-  Display the failure message verbatim. Show recovery instructions:
+**Read roadmap state:**
 
-  ```
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   GSD ► YOLO STOPPED
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```bash
+ANALYZE=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs roadmap analyze 2>/dev/null)
+```
 
-  YOLO run stopped at Phase ${NEXT_PHASE}.
+Extract from ANALYZE: `next_phase`, `completed_phases`, `phase_count`.
 
-  **To resume manually:**
-  `/gsd:plan-phase ${NEXT_PHASE}` — plan the stopped phase
-  `/gsd:execute-phase ${NEXT_PHASE}` — execute it directly
+Calculate: `ALL_DONE` = true if `next_phase` is empty or null (all phases marked complete).
 
-  **To retry YOLO from this point:**
-  `/gsd:yolo` — YOLO will detect stale state and ask what to do
-  ```
+**Read YOLO stanza state:**
 
-  Stop. Do NOT auto-retry (project decision: stop on failure, user resolves).
+```bash
+YOLO_STATE=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state read --raw 2>/dev/null || echo '{}')
+```
+
+Extract: `active` field. If stanza is empty (`{}`), it was cleared by transition.md Route B (milestone complete path).
+
+### C2. Route by Outcome
+
+**Case A: Milestone Complete**
+
+Condition: `ALL_DONE` is true (no next_phase) AND yolo stanza is empty or has `active: false`.
+
+This means transition.md Route B already ran, showed the YOLO COMPLETE banner, cleared the yolo stanza, and cleared auto_advance. yolo.md has nothing more to do.
+
+Display confirmation:
+
+```
+Chain complete. All phases finished.
+```
+
+Stop. Return to user.
+
+**Case B: Chain Stopped — Determine Why**
+
+Condition: `ALL_DONE` is false (next_phase exists). The chain stopped before completing all phases.
+
+Determine the stopped phase: `STOPPED_PHASE` = the value of `next_phase` from roadmap analyze. This is the phase that did NOT complete.
+
+Check for VERIFICATION.md to distinguish verification failure from unexpected error:
+
+```bash
+PADDED=$(printf "%02d" "$STOPPED_PHASE")
+PHASE_DIR=$(ls -d ".planning/phases/${PADDED}-"* 2>/dev/null | head -1)
+VERIFY_FILE="${PHASE_DIR}/${PADDED}-VERIFICATION.md"
+```
+
+**Case B1: Verification failure (FAIL-01, FAIL-02)**
+
+Condition: `VERIFY_FILE` exists AND contains `status: gaps_found` (or similar indication of verification gaps).
+
+Read the "What's Missing" or gaps section from VERIFICATION.md for display. Present the section verbatim — do not parse individual gap fields.
+
+Write failure state (preserve yolo stanza for Phase 4 resume):
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state fail --phase "${STOPPED_PHASE}" --reason "verification gaps found"
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance false
+```
+
+Display YOLO STOPPED banner (locked decision: show phase number + gaps, NO resume command):
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO STOPPED — Phase {STOPPED_PHASE}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Verification failed: Phase {STOPPED_PHASE} has unmet requirements.
+
+**What was missing:**
+{gaps section from VERIFICATION.md}
+
+YOLO state preserved. See {VERIFY_FILE} for full report.
+```
+
+Stop. Do NOT auto-retry.
+
+**Case B2: Unexpected error**
+
+Condition: Chain stopped but VERIFICATION.md does not exist for the stopped phase, OR VERIFICATION.md exists with a status other than `gaps_found`.
+
+Write failure state:
+
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state fail --phase "${STOPPED_PHASE}" --reason "unexpected error — chain terminated without verification artifact"
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance false
+```
+
+Display unexpected error banner (locked decision: show raw error, suggest manual investigation):
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO STOPPED — Unexpected Error
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The chain stopped at Phase {STOPPED_PHASE} without producing verification results.
+
+This may be an agent crash, tool failure, or planning failure.
+Investigate manually starting from Phase {STOPPED_PHASE}.
+
+YOLO state preserved at Phase {STOPPED_PHASE}.
+```
+
+Stop. Do NOT auto-retry.
 
 **Constraints:**
 - Do NOT use `config-set` on `workflow.research`, `workflow.plan_check`, or `workflow.verifier`
-- Do NOT implement cleanup of `workflow.auto_advance` or `workflow.yolo` stanza (Phase 3 scope)
 - Do NOT implement resume logic (Phase 4 scope)
+- Do NOT parse Task() return text for chain outcome detection — always use disk state (roadmap analyze, yolo-state read, VERIFICATION.md)
 
 </process>
