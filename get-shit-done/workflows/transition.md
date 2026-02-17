@@ -444,15 +444,21 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance 
 
 <if mode="yolo">
 
-```
-Phase {X} marked complete.
-
-🎉 Milestone {version} is 100% complete — all {N} phases finished!
-
-⚡ Auto-continuing: Complete milestone and archive
+Clean up YOLO state (milestone is complete):
+```bash
+node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state clear
 ```
 
-Exit skill and invoke SlashCommand("/gsd:complete-milestone {version}")
+Display completion banner:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO COMPLETE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All {N} phases complete. Milestone done.
+```
+
+Stop. Return to user. Do NOT invoke complete-milestone — the user reviews and archives at their discretion.
 
 </if>
 
