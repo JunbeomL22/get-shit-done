@@ -5,6 +5,8 @@ const path = require('path');
 const os = require('os');
 const readline = require('readline');
 const crypto = require('crypto');
+const https = require('https');
+const { execSync } = require('child_process');
 
 // Colors
 const cyan = '\x1b[36m';
@@ -26,6 +28,7 @@ const hasGemini = args.includes('--gemini');
 const hasBoth = args.includes('--both'); // Legacy flag, keeps working
 const hasAll = args.includes('--all');
 const hasUninstall = args.includes('--uninstall') || args.includes('-u');
+const hasSkipJq = args.includes('--skip-jq');
 
 // Runtime selection - can be set by flags or interactive prompt
 let selectedRuntimes = [];
@@ -171,7 +174,7 @@ console.log(banner);
 
 // Show help if requested
 if (hasHelp) {
-  console.log(`  ${yellow}Usage:${reset} npx get-shit-done-cc [options]\n\n  ${yellow}Options:${reset}\n    ${cyan}-g, --global${reset}              Install globally (to config directory)\n    ${cyan}-l, --local${reset}               Install locally (to current directory)\n    ${cyan}--claude${reset}                  Install for Claude Code only\n    ${cyan}--opencode${reset}                Install for OpenCode only\n    ${cyan}--gemini${reset}                  Install for Gemini only\n    ${cyan}--all${reset}                     Install for all runtimes\n    ${cyan}-u, --uninstall${reset}           Uninstall GSD (remove all GSD files)\n    ${cyan}-c, --config-dir <path>${reset}   Specify custom config directory\n    ${cyan}-h, --help${reset}                Show this help message\n    ${cyan}--force-statusline${reset}        Replace existing statusline config\n\n  ${yellow}Examples:${reset}\n    ${dim}# Interactive install (prompts for runtime and location)${reset}\n    npx get-shit-done-cc\n\n    ${dim}# Install for Claude Code globally${reset}\n    npx get-shit-done-cc --claude --global\n\n    ${dim}# Install for Gemini globally${reset}\n    npx get-shit-done-cc --gemini --global\n\n    ${dim}# Install for all runtimes globally${reset}\n    npx get-shit-done-cc --all --global\n\n    ${dim}# Install to custom config directory${reset}\n    npx get-shit-done-cc --claude --global --config-dir ~/.claude-bc\n\n    ${dim}# Install to current project only${reset}\n    npx get-shit-done-cc --claude --local\n\n    ${dim}# Uninstall GSD from Claude Code globally${reset}\n    npx get-shit-done-cc --claude --global --uninstall\n\n  ${yellow}Notes:${reset}\n    The --config-dir option is useful when you have multiple configurations.\n    It takes priority over CLAUDE_CONFIG_DIR / GEMINI_CONFIG_DIR environment variables.\n`);
+  console.log(`  ${yellow}Usage:${reset} npx get-shit-done-cc [options]\n\n  ${yellow}Options:${reset}\n    ${cyan}-g, --global${reset}              Install globally (to config directory)\n    ${cyan}-l, --local${reset}               Install locally (to current directory)\n    ${cyan}--claude${reset}                  Install for Claude Code only\n    ${cyan}--opencode${reset}                Install for OpenCode only\n    ${cyan}--gemini${reset}                  Install for Gemini only\n    ${cyan}--all${reset}                     Install for all runtimes\n    ${cyan}-u, --uninstall${reset}           Uninstall GSD (remove all GSD files)\n    ${cyan}-c, --config-dir <path>${reset}   Specify custom config directory\n    ${cyan}-h, --help${reset}                Show this help message\n    ${cyan}--force-statusline${reset}        Replace existing statusline config\n    ${cyan}--skip-jq${reset}                  Skip automatic jq installation\n\n  ${yellow}Examples:${reset}\n    ${dim}# Interactive install (prompts for runtime and location)${reset}\n    npx get-shit-done-cc\n\n    ${dim}# Install for Claude Code globally${reset}\n    npx get-shit-done-cc --claude --global\n\n    ${dim}# Install for Gemini globally${reset}\n    npx get-shit-done-cc --gemini --global\n\n    ${dim}# Install for all runtimes globally${reset}\n    npx get-shit-done-cc --all --global\n\n    ${dim}# Install to custom config directory${reset}\n    npx get-shit-done-cc --claude --global --config-dir ~/.claude-bc\n\n    ${dim}# Install to current project only${reset}\n    npx get-shit-done-cc --claude --local\n\n    ${dim}# Uninstall GSD from Claude Code globally${reset}\n    npx get-shit-done-cc --claude --global --uninstall\n\n  ${yellow}Notes:${reset}\n    The --config-dir option is useful when you have multiple configurations.\n    It takes priority over CLAUDE_CONFIG_DIR / GEMINI_CONFIG_DIR environment variables.\n`);
   process.exit(0);
 }
 
@@ -183,6 +186,173 @@ function expandTilde(filePath) {
     return path.join(os.homedir(), filePath.slice(2));
   }
   return filePath;
+}
+
+// ──────────────────────────────────────────────────────
+// jq Auto-Install
+// ──────────────────────────────────────────────────────
+
+const JQ_VERSION = 'jq-1.7.1';
+
+/**
+ * Check if jq is available in PATH
+ */
+function isJqAvailable() {
+  try {
+    execSync('jq --version', { encoding: 'utf8', stdio: 'pipe', timeout: 5000 });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Check if a directory is in the system PATH
+ */
+function isInPath(dir) {
+  const pathDirs = (process.env.PATH || '').split(path.delimiter);
+  return pathDirs.some(p => {
+    try {
+      return fs.realpathSync(p) === fs.realpathSync(dir);
+    } catch {
+      return p === dir;
+    }
+  });
+}
+
+/**
+ * Get the jq binary download URL for the current platform
+ * @returns {{ url: string, destName: string } | null}
+ */
+function getJqDownloadInfo() {
+  const platform = os.platform();
+  const arch = os.arch();
+
+  const BASE_URL = `https://github.com/jqlang/jq/releases/download/${JQ_VERSION}`;
+
+  const platformMap = { linux: 'linux', darwin: 'macos', win32: 'windows' };
+  const archMap = { x64: 'amd64', arm64: 'arm64' };
+
+  const jqPlatform = platformMap[platform];
+  const jqArch = archMap[arch];
+
+  if (!jqPlatform || !jqArch) return null;
+  if (platform === 'win32' && arch !== 'x64') return null;
+
+  const isWindows = platform === 'win32';
+  const filename = `jq-${jqPlatform}-${jqArch}${isWindows ? '.exe' : ''}`;
+
+  return {
+    url: `${BASE_URL}/${filename}`,
+    destName: isWindows ? 'jq.exe' : 'jq',
+  };
+}
+
+/**
+ * Get the destination directory and path for jq binary
+ */
+function getJqDestination() {
+  if (os.platform() === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    const dir = path.join(localAppData, 'Programs', 'jq');
+    return { dir, filePath: path.join(dir, 'jq.exe'), inPath: false };
+  }
+
+  const dir = path.join(os.homedir(), '.local', 'bin');
+  return { dir, filePath: path.join(dir, 'jq'), inPath: isInPath(dir) };
+}
+
+/**
+ * Download a file from a URL, following redirects
+ * Uses only Node.js builtin https module
+ */
+function downloadFile(url, destPath, maxRedirects) {
+  if (maxRedirects === undefined) maxRedirects = 5;
+  return new Promise((resolve, reject) => {
+    const proto = url.startsWith('https') ? https : require('http');
+
+    const req = proto.get(url, { headers: { 'User-Agent': 'get-shit-done-cc' } }, (res) => {
+      if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) && res.headers.location) {
+        if (maxRedirects <= 0) {
+          reject(new Error('Too many redirects'));
+          return;
+        }
+        res.resume();
+        downloadFile(res.headers.location, destPath, maxRedirects - 1).then(resolve).catch(reject);
+        return;
+      }
+
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error('HTTP ' + res.statusCode));
+        return;
+      }
+
+      const fileStream = fs.createWriteStream(destPath);
+      res.pipe(fileStream);
+      fileStream.on('finish', () => fileStream.close(resolve));
+      fileStream.on('error', (err) => {
+        fs.unlink(destPath, () => {});
+        reject(err);
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(30000, () => req.destroy(new Error('Download timed out')));
+  });
+}
+
+/**
+ * Ensure jq is installed. Downloads if missing.
+ */
+async function ensureJq() {
+  if (isJqAvailable()) {
+    console.log(`  ${green}✓${reset} jq is available`);
+    return;
+  }
+
+  console.log(`  ${yellow}i${reset} jq not found — downloading...`);
+
+  const info = getJqDownloadInfo();
+  if (!info) {
+    console.log(`  ${yellow}⚠${reset} Unsupported platform for automatic jq install (${os.platform()}/${os.arch()})`);
+    console.log(`    Install manually: ${cyan}https://jqlang.github.io/jq/download/${reset}\n`);
+    return;
+  }
+
+  const dest = getJqDestination();
+
+  try {
+    fs.mkdirSync(dest.dir, { recursive: true });
+    await downloadFile(info.url, dest.filePath);
+
+    if (os.platform() !== 'win32') {
+      fs.chmodSync(dest.filePath, 0o755);
+    }
+
+    // Verify the binary works
+    try {
+      execSync(`"${dest.filePath}" --version`, { encoding: 'utf8', stdio: 'pipe', timeout: 5000 });
+    } catch (e) {
+      fs.unlinkSync(dest.filePath);
+      throw new Error('Downloaded binary failed verification');
+    }
+
+    console.log(`  ${green}✓${reset} Installed jq to ${dest.filePath.replace(os.homedir(), '~')}`);
+
+    if (!dest.inPath) {
+      if (os.platform() === 'win32') {
+        console.log(`  ${yellow}⚠${reset} Add to PATH: ${cyan}${dest.dir}${reset}\n`);
+      } else {
+        console.log(`  ${yellow}⚠${reset} Add to your shell profile: ${dim}export PATH="$HOME/.local/bin:$PATH"${reset}\n`);
+      }
+    }
+  } catch (e) {
+    try { fs.unlinkSync(dest.filePath); } catch (_) {}
+    console.log(`  ${yellow}⚠${reset} Could not install jq: ${e.message}`);
+    console.log(`    Install manually: ${cyan}https://jqlang.github.io/jq/download/${reset}`);
+    console.log(`    Some GSD workflows require jq for JSON parsing.\n`);
+  }
 }
 
 /**
@@ -1739,41 +1909,50 @@ function promptLocation(runtimes) {
  * Install GSD for all selected runtimes
  */
 function installAllRuntimes(runtimes, isGlobal, isInteractive) {
-  const results = [];
+  function doInstall() {
+    const results = [];
 
-  for (const runtime of runtimes) {
-    const result = install(isGlobal, runtime);
-    results.push(result);
+    for (const runtime of runtimes) {
+      const result = install(isGlobal, runtime);
+      results.push(result);
+    }
+
+    // Handle statusline for Claude & Gemini (OpenCode uses themes)
+    const claudeResult = results.find(r => r.runtime === 'claude');
+    const geminiResult = results.find(r => r.runtime === 'gemini');
+
+    // Logic: if both are present, ask once if interactive? Or ask for each?
+    // Simpler: Ask once and apply to both if applicable.
+
+    if (claudeResult || geminiResult) {
+      // Use whichever settings exist to check for existing statusline
+      const primaryResult = claudeResult || geminiResult;
+
+      handleStatusline(primaryResult.settings, isInteractive, (shouldInstallStatusline) => {
+        if (claudeResult) {
+          finishInstall(claudeResult.settingsPath, claudeResult.settings, claudeResult.statuslineCommand, shouldInstallStatusline, 'claude', isGlobal);
+        }
+        if (geminiResult) {
+           finishInstall(geminiResult.settingsPath, geminiResult.settings, geminiResult.statuslineCommand, shouldInstallStatusline, 'gemini', isGlobal);
+        }
+
+        const opencodeResult = results.find(r => r.runtime === 'opencode');
+        if (opencodeResult) {
+          finishInstall(opencodeResult.settingsPath, opencodeResult.settings, opencodeResult.statuslineCommand, false, 'opencode', isGlobal);
+        }
+      });
+    } else {
+      // Only OpenCode
+      const opencodeResult = results[0];
+      finishInstall(opencodeResult.settingsPath, opencodeResult.settings, opencodeResult.statuslineCommand, false, 'opencode', isGlobal);
+    }
   }
 
-  // Handle statusline for Claude & Gemini (OpenCode uses themes)
-  const claudeResult = results.find(r => r.runtime === 'claude');
-  const geminiResult = results.find(r => r.runtime === 'gemini');
-
-  // Logic: if both are present, ask once if interactive? Or ask for each?
-  // Simpler: Ask once and apply to both if applicable.
-  
-  if (claudeResult || geminiResult) {
-    // Use whichever settings exist to check for existing statusline
-    const primaryResult = claudeResult || geminiResult;
-    
-    handleStatusline(primaryResult.settings, isInteractive, (shouldInstallStatusline) => {
-      if (claudeResult) {
-        finishInstall(claudeResult.settingsPath, claudeResult.settings, claudeResult.statuslineCommand, shouldInstallStatusline, 'claude', isGlobal);
-      }
-      if (geminiResult) {
-         finishInstall(geminiResult.settingsPath, geminiResult.settings, geminiResult.statuslineCommand, shouldInstallStatusline, 'gemini', isGlobal);
-      }
-
-      const opencodeResult = results.find(r => r.runtime === 'opencode');
-      if (opencodeResult) {
-        finishInstall(opencodeResult.settingsPath, opencodeResult.settings, opencodeResult.statuslineCommand, false, 'opencode', isGlobal);
-      }
-    });
+  // Ensure jq is available before installing runtimes
+  if (hasSkipJq) {
+    doInstall();
   } else {
-    // Only OpenCode
-    const opencodeResult = results[0];
-    finishInstall(opencodeResult.settingsPath, opencodeResult.settings, opencodeResult.statuslineCommand, false, 'opencode', isGlobal);
+    ensureJq().finally(() => doInstall());
   }
 }
 
