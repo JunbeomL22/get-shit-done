@@ -1,168 +1,138 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-17
+**Analysis Date:** 2026-02-28
 
-## External AI Runtimes & APIs
+## APIs & External Services
 
-**Claude Code (Anthropic):**
-- Purpose: Primary development runtime target
-- Integration: Command installation into `~/.claude/` config directory
-- Authentication: Handled by Claude Code session (no API keys required in GSD)
-- Hooks: Installs statusline hook and update-check hook
-- Tools available: Read, Write, Edit, Bash, Glob, Grep, WebFetch, WebSearch, AskUserQuestion, SlashCommand, TodoWrite
-- Configuration: `~/.claude/settings.json` (permissions, attribution, statusline)
+**Web Search:**
+- Brave Search API - Optional web search integration for research phase
+  - SDK/Client: Native fetch using Node.js https module
+  - Auth: Environment variable `BRAVE_API_KEY` or file `~/.gsd/brave_api_key`
+  - Endpoint: `https://api.search.brave.com/res/v1/web/search`
+  - Response: Web search results with title, URL, description, and age
+  - Fallback: If not configured, agents use runtime built-in WebSearch tool (Claude Code, Gemini, OpenCode)
+  - Location: `get-shit-done/bin/gsd-tools.cjs` - `cmdWebsearch()` function
 
-**OpenCode (Open Source):**
-- Purpose: Alternative open-source runtime target
-- Integration: Command installation into `~/.config/opencode/` (XDG Base Directory spec)
-- Authentication: Handled by OpenCode session
-- Config precedence: `OPENCODE_CONFIG_DIR` > `OPENCODE_CONFIG` > `XDG_CONFIG_HOME/opencode` > `~/.config/opencode`
-- Tools mapping: Claude tool names converted to lowercase (e.g., AskUserQuestion → question)
-- Configuration: `opencode.json` with tool permissions and attribution settings
+**Version Management:**
+- npm registry - Check installed vs latest version
+  - Command: `npm view get-shit-done-cc version`
+  - Async background check run by SessionStart hook
+  - Cache file: `~/.claude/cache/gsd-update-check.json` (or equivalent for other runtimes)
+  - Location: `hooks/gsd-check-update.js` - Background version check hook
 
-**Gemini CLI (Google):**
-- Purpose: Alternative AI runtime target
-- Integration: Command installation into `~/.gemini/` config directory
-- Authentication: Handled by Gemini CLI session
-- Tools mapping: Claude tool names converted to snake_case (e.g., Read → read_file, Bash → run_shell_command)
-- Features: Experimental agents enabled with flag `-e` for custom sub-agents
-- Configuration: `settings.json` with tool permissions and attribution settings
+**Download/Package Distribution:**
+- GitHub Releases - jq binary distribution
+  - Endpoint: `https://github.com/jqlang/jq/releases/download/jq-1.7.1`
+  - Used for: Optional JSON parsing tool (auto-installed if missing)
+  - Platform-aware: Downloads appropriate binary for OS
 
-## Package Registry
+## Data Storage
 
-**NPM Registry:**
-- Service: NPM public registry (npmjs.com)
-- Purpose: Package distribution and version checking
-- Integration: `npm view get-shit-done-cc version` command
-  - Used in: `hooks/gsd-check-update.js` (background update checker)
-  - Timeout: 10 seconds
-  - Caching: Results stored in `~/.claude/cache/gsd-update-check.json`
-  - Display: Update notification shown in statusline if newer version available
+**Databases:**
+- None - Pure file-based workflow system
 
-## Web Search
+**File Storage:**
+- Local filesystem only - All state stored in project directories
+  - `.planning/` - Project planning files (config, state, roadmap, phases)
+  - `~/.claude/`, `~/.config/opencode/`, `~/.gemini/` - Runtime-specific config
+  - `~/.gsd/` - Global GSD state directory (brave_api_key, defaults.json, update cache)
 
-**Brave Search API:**
-- Service: Brave Search (https://api.search.brave.com/res/v1/web/search)
-- Purpose: Enhanced web search capabilities for research workflows
-- Authentication: `BRAVE_API_KEY` environment variable
-- Key storage location: `~/.config/brave-search-api-key` (checked if env var not set)
-- Integration point: `get-shit-done/bin/gsd-tools.cjs` → `cmdWebsearch()` function
-- Parameters:
-  - Query limit: Default 10 results (configurable via `--limit N`)
-  - Freshness: Optional filter for result recency (day|week|month)
-  - Country: Fixed to 'us'
-  - Language: Fixed to 'en'
-  - Text decorations: Disabled
-- Response format: JSON with web results (title, url, description, age)
-- Fallback: If API key not configured, silently skips (agent falls back to built-in WebSearch)
+**Caching:**
+- None - No persistent cache databases
+- Transient caches: Update check cache, statusline cache (in-memory or temporary files)
 
-## Git Integration
+## Authentication & Identity
 
-**Git Repository Hosting:**
-- Repository: https://github.com/glittercowboy/get-shit-done
-- Integration: Project version tracking, issue tracking
-- Workflow integration: GSD workflows create git commits automatically
-  - Uses: `git commit` with structured messages
-  - Attribution: Configurable Co-Authored-By lines
-  - Validation: Checks `.planning/` gitignore status
+**Auth Provider:**
+- None - No user authentication system
+- API-based:
+  - Brave Search: API key (bearer token) via `X-Subscription-Token` header
+  - No OAuth, no login, no user sessions
 
-**Git Operations in GSD:**
-- Location: `get-shit-done/bin/gsd-tools.cjs` - centralized git handling
-- Operations: Commit messages, branch management, phase tracking
-- Configuration: `branching_strategy`, `phase_branch_template`, `milestone_branch_template` (in config.json)
-- Check commands: `git check-ignore`, `git log`, `git branch`
+**Configuration:**
+- Per-user directories: `~/.claude/`, `~/.config/opencode/`, `~/.gemini/`
+- Per-project override: `./.claude/`, `./.opencode/`, `./.gemini/`
+- Settings stored in `settings.json` (runtime-native format)
 
-## File System Integration
+## Monitoring & Observability
 
-**User Configuration Directories:**
-- Claude Code: `~/.claude/` (with subdirectories: `get-shit-done/`, `hooks/`, `cache/`, `todos/`)
-- OpenCode: `~/.config/opencode/` (XDG Base Directory spec)
-- Gemini CLI: `~/.gemini/`
+**Error Tracking:**
+- None - No external error tracking service
 
-**Local Installation:**
-- Project-scoped: `./.claude/`, `./.opencode/`, `./.gemini/` (same hierarchy as global)
-- Advantage: Per-project GSD configuration without global installation
+**Logs:**
+- Console output only - STDOUT for normal operation, STDERR for errors
+- Color-coded terminal output using ANSI escape sequences
+- No log aggregation or remote logging
 
-**Cache Locations:**
-- Update check cache: `~/.claude/cache/gsd-update-check.json`
-- Todo tracking: `~/.claude/todos/` (session-based JSON files)
+**Status/Health:**
+- Hook-based: `gsd-statusline.js` - Optional statusline display in supported editors
+- Configuration: Via runtime `settings.json` for hook customization
 
-## Webhooks & System Hooks
+## CI/CD & Deployment
 
-**SessionStart Hook (Claude Code/OpenCode/Gemini):**
-- Trigger: When development session starts
-- Script: `hooks/gsd-check-update.js`
-- Function: Background check for newer GSD versions
-- Process: Spawns detached background process to avoid blocking session
-- Output: Writes to cache file (`~/.claude/cache/gsd-update-check.json`)
+**Hosting:**
+- npm public registry - Package hosting
+- GitHub - Source code repository and releases
 
-**Statusline Hook (Claude Code/OpenCode/Gemini):**
-- Trigger: Session statusline rendering
-- Script: `hooks/gsd-statusline.js`
-- Input: JSON stdin from runtime (model, workspace, session_id, context_window)
-- Function: Displays model, current task, directory, context usage, update notification
-- Output: Formatted ANSI text for statusline display
-- Data sources:
-  - Session metadata from runtime
-  - Current task from todo files (`~/.claude/todos/`)
-  - Update cache from `gsd-check-update.json`
-  - Context window remaining percentage
+**CI Pipeline:**
+- GitHub Actions - Workflow files in `.github/workflows/` (detected but not analyzed)
+- No automated testing in default package.json - Manual testing via `npm test`
 
-## Data Formats & Synchronization
+**Distribution:**
+- Published as npm package: `get-shit-done-cc`
+- Installation: `npx get-shit-done-cc` or `npm install -g get-shit-done-cc`
 
-**Markdown Frontmatter:**
-- Format: YAML frontmatter in markdown documents (between `---` delimiters)
-- Purpose: Structured metadata for phases, plans, summaries
-- Fields: phase, name, tech-stack, decisions, metrics, etc.
-- Parsing: Custom frontmatter extractor in `gsd-tools.cjs`
+## Environment Configuration
 
-**JSON Configuration:**
-- `.planning/config.json` - Project-level GSD configuration
-- Tool availability tracking: Stores Brave API availability, feature flags
-- State storage: Serialized project state for workflow continuity
+**Required env vars:**
+- None - Everything is optional or has sensible defaults
 
-## Environment Variables
+**Optional env vars:**
+- `BRAVE_API_KEY` - Brave Search API key for enhanced web search
+- `CLAUDE_CONFIG_DIR` - Override Claude Code config directory
+- `OPENCODE_CONFIG_DIR` / `OPENCODE_CONFIG` - Override OpenCode config directory
+- `GEMINI_CONFIG_DIR` - Override Gemini CLI config directory
+- `XDG_CONFIG_HOME` - XDG Base Directory for OpenCode (respects standard)
+- `HOME` - User home directory (for path resolution in workflows)
 
-**Required (for optional features):**
-- `BRAVE_API_KEY` - Brave Search API key (optional, feature degrades gracefully if not set)
+**Secrets location:**
+- `.env` - Not used; API keys stored as:
+  - Environment variables (preferred for sensitive data)
+  - `~/.gsd/brave_api_key` - File-based fallback for Brave API key
+  - Runtime-specific config dirs with restricted permissions
 
-**Optional (runtime selection):**
-- `CLAUDE_CONFIG_DIR` - Override Claude Code config location
-- `GEMINI_CONFIG_DIR` - Override Gemini CLI config location
-- `OPENCODE_CONFIG_DIR` - Override OpenCode config location
-- `OPENCODE_CONFIG` - Specific OpenCode config file path
-- `XDG_CONFIG_HOME` - XDG Base Directory (used by OpenCode)
-- `HOME` - User home directory (used for path resolution)
+## Webhooks & Callbacks
 
-## External Tool Integration
+**Incoming:**
+- None - Pure CLI-based system, no webhook endpoints
 
-**Runtime Tool Mapping:**
-GSD adapts Claude Code tools for target runtimes:
+**Outgoing:**
+- git commit hooks - Installed by GSD to:
+  - Auto-commit planning documents during workflows
+  - Hook scripts: `hooks/gsd-statusline.js`, `hooks/gsd-check-update.js`
+  - Location: Installed into runtime's hook directory
 
-Claude Code → OpenCode:
-- AskUserQuestion → question
-- SlashCommand → skill
-- TodoWrite → todowrite
-- WebFetch → webfetch
-- WebSearch → websearch (plugin/MCP)
-- All others: Convert to lowercase
+## System Integration
 
-Claude Code → Gemini CLI:
-- Read → read_file
-- Write → write_file
-- Edit → replace
-- Bash → run_shell_command
-- Glob → glob
-- Grep → search_file_content
-- WebSearch → google_web_search
-- WebFetch → web_fetch
-- TodoWrite → write_todos
-- AskUserQuestion → ask_user
+**Version Control:**
+- Git integration via Node.js `child_process.execSync()`
+  - Commands: `git commit`, `git status`, `git log`, `git diff`, `git add`, `git tag`
+  - Location: `get-shit-done/bin/gsd-tools.cjs` - `cmdCommit()`, phase operations
+  - No git library dependency; uses native CLI
 
-## No Direct Database Integration
+**Terminal/Editor:**
+- Claude Code - Native terminal integration
+- OpenCode - Via XDG-compliant config
+- Gemini CLI - Via CLI integration
+- Hook system for statusline display (editor-specific)
 
-**Note:** GSD itself does not integrate with databases. It operates as a meta-prompting system and command orchestrator. User projects that GSD manages may use databases (documented in generated INTEGRATIONS.md for those projects).
+**Process Management:**
+- Child process spawning for:
+  - jq installation checks and execution
+  - npm version checks (background process)
+  - git operations
+- Process detachment on Windows for background hooks
 
 ---
 
-*Integration audit: 2026-02-17*
+*Integration audit: 2026-02-28*

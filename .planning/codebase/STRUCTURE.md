@@ -1,316 +1,409 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-02-17
+**Analysis Date:** 2026-02-28
 
 ## Directory Layout
 
 ```
 get-shit-done/
-├── bin/                         # Installation & entry point
-│   └── install.js               # Interactive/non-interactive installer for all runtimes
-├── commands/                    # Public command API
-│   └── gsd/                     # 20+ markdown command files (new-project, plan-phase, execute-phase, etc.)
-├── get-shit-done/               # Core GSD system
+├── bin/                              # NPM package entry point
+│   └── install.js                    # Global/local installer (Claude Code, OpenCode, Gemini)
+├── commands/                         # User-facing slash commands (auto-registered)
+│   └── gsd/
+│       ├── new-project.md           # /gsd:new-project — initialize project
+│       ├── plan-phase.md            # /gsd:plan-phase — generate PLAN.md
+│       ├── execute-phase.md         # /gsd:execute-phase — execute plans
+│       ├── verify-work.md           # /gsd:verify-work — validate execution
+│       ├── map-codebase.md          # /gsd:map-codebase — analyze codebase
+│       ├── yolo.md                  # /gsd:yolo — run all remaining phases
+│       ├── research-phase.md        # /gsd:research-phase — deep research
+│       ├── debug.md                 # /gsd:debug — diagnose failures
+│       ├── discuss-phase.md         # /gsd:discuss-phase — explore phase details
+│       ├── add-phase.md             # /gsd:add-phase — insert new phase
+│       ├── remove-phase.md          # /gsd:remove-phase — delete phase
+│       ├── plan-milestone-gaps.md   # /gsd:plan-milestone-gaps — plan gap closure
+│       ├── new-milestone.md         # /gsd:new-milestone — start new milestone
+│       ├── complete-milestone.md    # /gsd:complete-milestone — archive milestone
+│       ├── audit-milestone.md       # /gsd:audit-milestone — review milestone
+│       ├── resume-work.md           # /gsd:resume-work — resume after break
+│       ├── pause-work.md            # /gsd:pause-work — pause work session
+│       ├── progress.md              # /gsd:progress — show current state
+│       ├── health.md                # /gsd:health — check project health
+│       ├── help.md                  # /gsd:help — show help
+│       ├── quick.md                 # /gsd:quick — fast execution loop
+│       ├── settings.md              # /gsd:settings — user preferences
+│       ├── list-phase-assumptions.md # /gsd:list-phase-assumptions
+│       ├── check-todos.md           # /gsd:check-todos — view pending todos
+│       ├── add-todo.md              # /gsd:add-todo — add todo item
+│       ├── insert-phase.md          # /gsd:insert-phase — insert phase after N
+│       ├── cleanup.md               # /gsd:cleanup — clean build artifacts
+│       ├── reapply-patches.md       # /gsd:reapply-patches — apply saved patches
+│       ├── update.md                # /gsd:update — update GSD version
+│       ├── set-profile.md           # /gsd:set-profile — set execution profile
+│       ├── join-discord.md          # /gsd:join-discord — join community
+│       └── [30+ more commands]
+│
+├── agents/                          # Specialized Claude agents
+│   ├── gsd-executor.md             # Executes PLAN.md → creates SUMMARY.md
+│   ├── gsd-planner.md              # Creates PLAN.md from context
+│   ├── gsd-debugger.md             # Diagnoses and fixes failures
+│   ├── gsd-codebase-mapper.md      # Analyzes codebase → writes STACK.md, ARCHITECTURE.md
+│   ├── gsd-roadmapper.md           # Designs project roadmap
+│   ├── gsd-phase-researcher.md     # Deep research on phase unknowns
+│   ├── gsd-project-researcher.md   # Project discovery research
+│   ├── gsd-research-synthesizer.md # Synthesizes research into requirements
+│   ├── gsd-verifier.md             # Validates execution results
+│   ├── gsd-plan-checker.md         # Validates PLAN.md quality
+│   └── gsd-integration-checker.md  # Checks integration feasibility
+│
+├── get-shit-done/                   # NPM package contents (what gets installed)
 │   ├── bin/
-│   │   ├── gsd-tools.cjs        # Central CLI tool (state, phase, roadmap, git operations)
-│   │   └── gsd-tools.test.cjs   # Node test suite for gsd-tools
-│   ├── workflows/               # 30+ orchestration workflows
-│   │   ├── new-project.md       # Initialize project (questioning → research → requirements → roadmap)
-│   │   ├── plan-phase.md        # Create executable plans for a phase
-│   │   ├── execute-phase.md     # Execute all plans in a phase (wave-parallel)
-│   │   ├── map-codebase.md      # Spawn parallel mapper agents for codebase analysis
-│   │   ├── execute-plan.md      # Single-plan executor entry point
-│   │   ├── verify-work.md       # Verify phase execution (tests, must-haves)
-│   │   └── [25+ more workflows] # plan-milestone-gaps, complete-milestone, research-phase, etc.
-│   ├── templates/               # 30+ markdown templates
-│   │   ├── project.md           # PROJECT.md template (what, core value, requirements, constraints, decisions)
-│   │   ├── requirements.md      # REQUIREMENTS.md template (v1/v2 reqs, out of scope, traceability)
-│   │   ├── roadmap.md           # ROADMAP.md template (phases, goals, success criteria, plans)
-│   │   ├── state.md             # STATE.md template (position, metrics, blockers, accumulated context)
-│   │   ├── milestone.md         # Milestone entry template (version, deliverables, stats, git range)
-│   │   ├── phase-prompt.md      # PLAN.md template (objective, frontmatter, tasks, verification)
-│   │   ├── summary.md           # SUMMARY.md template (frontmatter, subsystem, key files, patterns, metrics)
-│   │   ├── context.md           # CONTEXT.md template (user design decisions, locked/deferred/discretion)
-│   │   ├── discovery.md         # DISCOVERY.md template (phase discovery notes)
-│   │   ├── research.md          # RESEARCH.md template (domain findings, patterns, libraries, risks)
-│   │   ├── verification-report.md  # VERIFICATION.md template (test results, must-haves check)
-│   │   ├── uat.md               # UAT.md template (user acceptance test checklist)
-│   │   ├── codebase/            # Codebase analysis templates (7 files)
-│   │   │   ├── stack.md         # STACK.md template (languages, runtimes, frameworks)
-│   │   │   ├── integrations.md  # INTEGRATIONS.md template (APIs, databases, auth, monitoring)
-│   │   │   ├── architecture.md  # ARCHITECTURE.md template (pattern, layers, data flow)
-│   │   │   ├── structure.md     # STRUCTURE.md template (directory layout, key locations)
-│   │   │   ├── conventions.md   # CONVENTIONS.md template (naming, style, imports, comments)
-│   │   │   ├── testing.md       # TESTING.md template (framework, structure, patterns)
-│   │   │   └── concerns.md      # CONCERNS.md template (tech debt, bugs, performance, security)
-│   │   ├── research-project/    # Research phase templates (FEATURES, STACK, ARCHITECTURE, etc.)
-│   │   ├── summary-*.md         # Summary variants (standard, minimal, complex)
-│   │   ├── continue-here.md     # Session resumption template
-│   │   ├── config.json          # Sample config.json for new projects
-│   │   ├── planner-subagent-prompt.md  # Extended planner context template
-│   │   └── debug-subagent-prompt.md    # Extended debugger context template
-│   ├── references/              # 13 protocol/pattern reference files
-│   │   ├── checkpoints.md       # Checkpoint task patterns (decision, human-verify, system-verify)
-│   │   ├── verification-patterns.md  # Testing patterns (unit, integration, E2E)
-│   │   ├── tdd.md               # TDD execution protocol for plan tasks
-│   │   ├── git-integration.md   # Git workflow patterns (commits, branches, ranges)
-│   │   ├── model-profiles.md    # Model selection guidance (quality/balanced/budget)
-│   │   ├── model-profile-resolution.md  # How to resolve model profiles to Claude models
-│   │   ├── planning-config.md   # .planning/config.json schema and options
-│   │   ├── ui-brand.md          # UI consistency guidelines (colors, spacing, language tone)
-│   │   ├── questioning.md       # Project discovery questioning protocol
-│   │   ├── continuation-format.md  # Session continuation (.continue-here.md format)
-│   │   ├── phase-argument-parsing.md  # How to parse phase arguments (1, 2.1, 02.1, etc.)
-│   │   ├── decimal-phase-calculation.md  # Phase renumbering logic (inserting decimal phases)
-│   │   └── git-planning-commit.md  # Planning commit message conventions
-├── agents/                      # 11 specialized agent implementations
-│   ├── gsd-planner.md           # Plan creator (decompose phase into parallel tasks)
-│   ├── gsd-executor.md          # Plan executor (execute tasks, handle deviations, commit)
-│   ├── gsd-verifier.md          # Verification agent (test, check must-haves)
-│   ├── gsd-debugger.md          # Debug agent (investigate failures, find root cause)
-│   ├── gsd-phase-researcher.md  # Phase-focused research (library selection, patterns)
-│   ├── gsd-project-researcher.md  # Project discovery research (domain, user needs)
-│   ├── gsd-research-synthesizer.md  # Combine research into coherent narrative
-│   ├── gsd-roadmapper.md        # Create roadmap structure from requirements
-│   ├── gsd-plan-checker.md      # Verify plan quality (dependencies, coverage, task structure)
-│   ├── gsd-integration-checker.md  # Check external API integration patterns
-│   └── gsd-codebase-mapper.md   # Analyze codebase, write ARCHITECTURE/STACK/etc. docs
-├── scripts/                     # Build & utility scripts
-│   └── build-hooks.js           # Build hooks installation script
-├── hooks/                       # Git hook scripts (pre-commit, post-commit, etc.)
-│   └── dist/                    # Compiled/built hook files
-├── docs/                        # User documentation
-│   └── USER-GUIDE.md            # How to use GSD (workflows, commands, best practices)
-├── assets/                      # Static assets
-│   └── terminal.svg             # Terminal screenshot asset
-├── .planning/                   # Project planning directory (created during init)
-│   ├── codebase/                # Codebase analysis documents (generated by map-codebase)
-│   │   ├── STACK.md             # Tech stack analysis
-│   │   ├── INTEGRATIONS.md      # External integrations
-│   │   ├── ARCHITECTURE.md      # Architecture patterns
-│   │   ├── STRUCTURE.md         # Directory structure guide
-│   │   ├── CONVENTIONS.md       # Coding conventions
-│   │   ├── TESTING.md           # Testing patterns
-│   │   └── CONCERNS.md          # Technical debt & issues
-│   ├── config.json              # Workflow configuration (model profile, git strategy, research enabled)
-│   ├── PROJECT.md               # Project context (what, core value, requirements, constraints, decisions)
-│   ├── REQUIREMENTS.md          # Requirements with traceability
-│   ├── ROADMAP.md               # Phase structure with goals and plans
-│   ├── STATE.md                 # Current position, metrics, blockers
-│   ├── MILESTONES.md            # Completed milestone summaries (created on completion)
-│   ├── phases/                  # Per-phase directories
-│   │   ├── 01-phase-name/       # Phase 1 directory (padded decimal naming)
-│   │   │   ├── 01-CONTEXT.md    # User design decisions for phase (from discuss-phase)
-│   │   │   ├── 01-01-PLAN.md    # Plan 1 (task breakdown, verification)
-│   │   │   ├── 01-01-SUMMARY.md # Plan 1 execution summary (commits, artifacts, patterns)
-│   │   │   ├── 01-02-PLAN.md    # Plan 2
-│   │   │   ├── 01-02-SUMMARY.md
-│   │   │   ├── 01-RESEARCH.md   # Phase research (if research enabled)
-│   │   │   ├── deferred-items.md  # Out-of-scope issues discovered during execution
-│   │   │   └── [other plans]
-│   │   ├── 02-phase-name/       # Phase 2
-│   │   ├── 02.1-phase-name/     # Decimal phase (inserted mid-project)
-│   │   └── [remaining phases]
-│   ├── todos/                   # Idea backlog
-│   │   ├── pending/             # Ideas not yet acted on
-│   │   │   └── {idea-slug}.md
-│   │   └── completed/           # Ideas that became phases or are dismissed
-│   │       └── {idea-slug}.md
-│   ├── milestones/              # Archived phase directories (on milestone completion)
-│   │   └── v1.0-phases/         # vX.Y-phases/ directories with archived phase folders
-│   └── research/                # Domain research files (if research enabled)
-│       ├── FEATURES.md          # User-facing features
-│       ├── STACK.md             # Tech recommendations
-│       ├── ARCHITECTURE.md      # Architecture patterns
-│       ├── PITFALLS.md          # Known issues
-│       └── [other research]
-├── .github/                     # GitHub configuration
-│   ├── workflows/               # GitHub Actions workflows
-│   └── ISSUE_TEMPLATE/          # Issue templates
-├── package.json                 # Node.js package metadata
-├── package-lock.json            # npm lock file
-├── README.md                    # Project documentation
-├── CHANGELOG.md                 # Version history
-├── LICENSE                      # MIT license
-└── .gitignore                   # Git ignore patterns
+│   │   ├── gsd-tools.cjs           # CLI utility for state, config, git operations
+│   │   └── gsd-tools.test.cjs      # Tests for gsd-tools
+│   ├── workflows/                  # Orchestrator processes
+│   │   ├── new-project.md          # Project initialization (questions → research → roadmap)
+│   │   ├── execute-phase.md        # Phase execution orchestrator (wave-based)
+│   │   ├── plan-phase.md           # Planning orchestrator
+│   │   ├── map-codebase.md         # Codebase mapping orchestrator (4 parallel agents)
+│   │   ├── research-phase.md       # Research orchestrator
+│   │   ├── verify-phase.md         # Verification orchestrator
+│   │   ├── discuss-phase.md        # Discussion/discovery orchestrator
+│   │   ├── yolo.md                 # Auto-chain phases workflow
+│   │   ├── diagnose-issues.md      # Failure diagnosis workflow
+│   │   ├── complete-milestone.md   # Milestone completion workflow
+│   │   ├── pause-work.md           # Work pause workflow
+│   │   ├── resume-project.md       # Work resume workflow
+│   │   ├── add-phase.md            # Phase insertion workflow
+│   │   ├── plan-milestone-gaps.md  # Gap closure planning
+│   │   ├── help.md                 # Help display workflow
+│   │   ├── update.md               # Update workflow
+│   │   ├── transition.md           # Phase-to-phase transition
+│   │   ├── add-todo.md             # Todo management
+│   │   ├── health.md               # Health check workflow
+│   │   ├── discovery-phase.md      # Initial discovery
+│   │   └── execute-plan.md         # Legacy: single plan execution
+│   │
+│   ├── templates/                  # Document templates for project
+│   │   ├── project.md              # PROJECT.md template
+│   │   ├── roadmap.md              # ROADMAP.md template
+│   │   ├── requirements.md         # REQUIREMENTS.md template
+│   │   ├── phase-prompt.md         # Phase-specific context template
+│   │   ├── plan.md                 # PLAN.md template (planning, structure)
+│   │   ├── summary.md              # SUMMARY.md template (main, complex, minimal, standard variants)
+│   │   ├── summary-minimal.md      # SUMMARY.md for small tasks
+│   │   ├── summary-standard.md     # SUMMARY.md default
+│   │   ├── summary-complex.md      # SUMMARY.md for large plans
+│   │   ├── verification-report.md  # VERIFICATION.md template
+│   │   ├── UAT.md                  # User Acceptance Test template
+│   │   ├── context.md              # CONTEXT.md template (user vision)
+│   │   ├── discovery.md            # DISCOVERY.md template (research findings)
+│   │   ├── research.md             # RESEARCH.md template (research output)
+│   │   ├── state.md                # STATE.md template
+│   │   ├── config.json             # config.json template
+│   │   ├── milestone.md            # MILESTONE.md template
+│   │   ├── milestone-archive.md    # Milestone archival template
+│   │   ├── user-setup.md           # User setup instructions
+│   │   ├── continue-here.md        # Continuation prompt
+│   │   ├── debug-subagent-prompt.md # Debug-specific context
+│   │   ├── planner-subagent-prompt.md # Planning-specific context
+│   │   ├── codebase/               # Codebase analysis templates
+│   │   │   ├── stack.md            # STACK.md template (tech stack)
+│   │   │   ├── integrations.md     # INTEGRATIONS.md template
+│   │   │   ├── architecture.md     # ARCHITECTURE.md template
+│   │   │   ├── structure.md        # STRUCTURE.md template
+│   │   │   ├── conventions.md      # CONVENTIONS.md template
+│   │   │   ├── testing.md          # TESTING.md template
+│   │   │   └── concerns.md         # CONCERNS.md template
+│   │   └── research-project/       # Research-specific templates
+│   │       ├── STACK.md
+│   │       ├── FEATURES.md
+│   │       └── PITFALLS.md
+│   │
+│   ├── references/                 # Shared reference documents for agents
+│   │   ├── checkpoints.md          # Checkpoint protocol deep dive
+│   │   ├── git-integration.md      # Git conventions and patterns
+│   │   ├── git-planning-commit.md  # Planning commit conventions
+│   │   ├── model-profiles.md       # Model selection guidance
+│   │   ├── model-profile-resolution.md # How model profiles are resolved
+│   │   ├── verification-patterns.md # How to verify execution results
+│   │   ├── tdd.md                  # Test-driven development patterns
+│   │   ├── questioning.md          # User questioning strategies
+│   │   ├── planning-config.md      # Configuration system docs
+│   │   ├── phase-argument-parsing.md # Phase number parsing
+│   │   ├── continuation-format.md  # Continuation message format
+│   │   ├── decimal-phase-calculation.md # Phase numbering logic
+│   │   └── ui-brand.md             # UI/messaging standards
+│   │
+│   └── bin/
+│       └── [installed copy of gsd-tools.cjs]
+│
+├── hooks/                           # Runtime hooks (built to dist/)
+│   ├── gsd-statusline.js           # Terminal statusline renderer
+│   ├── gsd-check-update.js         # Update checker
+│   └── dist/                       # Built hooks (generated by build:hooks)
+│
+├── scripts/                         # Build and utility scripts
+│   └── build-hooks.js              # Build hooks from source
+│
+├── docs/                           # User documentation
+│   └── USER-GUIDE.md               # User guide and feature overview
+│
+├── assets/                         # Marketing/demo assets
+│   └── terminal.svg                # Terminal demo SVG
+│
+├── .planning/                      # Project planning (GSD's own project)
+│   ├── PROJECT.md                  # GSD's project spec
+│   ├── REQUIREMENTS.md             # GSD's requirements
+│   ├── ROADMAP.md                  # GSD's roadmap
+│   ├── STATE.md                    # GSD's project state
+│   ├── config.json                 # GSD's config
+│   ├── phases/                     # GSD's phases
+│   │   ├── 01-state-infrastructure/
+│   │   ├── 02-launcher/
+│   │   ├── 03-integration-and-failure-hardening/
+│   │   ├── 04-resume-and-visibility/
+│   │   └── 05-fix-stopped-phase-detection/
+│   ├── codebase/                   # GSD's own codebase map (if ran map-codebase)
+│   ├── research/                   # GSD's research findings
+│   └── v1-MILESTONE-AUDIT.md      # v1 milestone retrospective
+│
+├── package.json                    # NPM package definition
+├── package-lock.json               # Locked dependencies
+├── CHANGELOG.md                    # Release notes
+├── README.md                       # Main documentation
+├── LICENSE                         # MIT license
+├── SECURITY.md                     # Security policy
+├── .gitignore                      # Git ignore rules
+├── INSTALL-LOCAL.md               # Local installation guide
+├── yolo-install.sh                # One-command installer (shell)
+└── yolo-install.ps1               # One-command installer (PowerShell)
 ```
 
 ## Directory Purposes
 
-**bin/**
-- Purpose: Entry point for global/local installation
-- Contains: install.js (main installer)
-- Generated: Nothing (all pre-existing)
+**bin/:**
+- Purpose: NPM package entry point
+- Contains: `install.js` which orchestrates global/local GSD installation
+- Behavior: When user runs `npx get-shit-done-cc`, this file executes
+- Creates: Runtime-specific directories (~/.claude/, ~/.opencode/, ~/.gemini/) with symlinks/copies of get-shit-done/ contents
 
-**commands/gsd/**
-- Purpose: Public command specifications (like API surface)
-- Contains: 20+ markdown files defining commands visible to users
-- Key files: `new-project.md`, `plan-phase.md`, `execute-phase.md`, `verify-work.md`, `map-codebase.md`
-- Pattern: Each file has YAML frontmatter (name, description, tools, argument-hint) + execution_context + process sections
+**commands/gsd/:**
+- Purpose: User command definitions (30+ files)
+- Contains: Markdown files with `<objective>`, `<execution_context>` pointing to workflows
+- Pattern: Each file auto-registers as `/gsd:filename` in Claude Code
+- Naming: kebab-case, e.g., `new-project.md` → `/gsd:new-project`
+- Key files: `new-project.md`, `plan-phase.md`, `execute-phase.md`, `verify-work.md`, `map-codebase.md`, `yolo.md`
 
-**get-shit-done/workflows/**
-- Purpose: Implementation of commands; orchestrate subagents and operations
-- Contains: Step-by-step workflows with bash calls, decision logic, subagent spawning
-- Execution: Referenced by commands via @-references, followed end-to-end during command execution
-- State: Workflows read/write project state (STATE.md, ROADMAP.md, etc.)
+**agents/:**
+- Purpose: Specialized agent definitions
+- Contains: Markdown agent specs with `<role>`, execution rules, output protocols
+- Pattern: Each agent file loaded by workflows via Task() primitives
+- Key agents: executor (plans), planner (creates plans), codebase-mapper (analyzes code), debugger (fixes issues)
+- Spawning: Workflows use agent name directly; gsd-tools resolves model based on profile
 
-**get-shit-done/templates/**
-- Purpose: Scaffolding for standard markdown documents
-- Contains: 30+ markdown templates with examples and guidelines
-- Key templates: PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md, PLAN.md, SUMMARY.md
-- Codebase templates: 7 analysis templates (STACK.md, ARCHITECTURE.md, etc.) for codebase mapping
-- Usage: Workflows fill templates during creation; agents reference templates for structure
+**get-shit-done/bin/:**
+- Purpose: Core CLI utilities (installed to ~/.claude/get-shit-done/bin/)
+- Key file: `gsd-tools.cjs` (187KB, centralizes ~100 repeated patterns across 50+ files)
+- Functions: state management, config parsing, phase lookups, git commits, summary verification
+- Used by: Every agent + workflow via `node ~/.claude/get-shit-done/bin/gsd-tools.cjs <command>`
+- Test file: `gsd-tools.test.cjs` (87KB)
 
-**get-shit-done/references/**
-- Purpose: Protocols, patterns, and decision tables shared across system
-- Contains: 13 files covering checkpoints, git patterns, model profiles, TDD protocol, UI brand
-- Usage: Referenced by workflows and agents via @-references; consulted during planning/execution
+**get-shit-done/workflows/:**
+- Purpose: Orchestrators for complex workflows
+- Contains: Markdown orchestrators with `<process>` steps, agent spawning, checkpoint handling
+- Key workflows:
+  - `new-project.md`: Initialize project (discovery → research → roadmap)
+  - `execute-phase.md`: Run phase plans (wave-based, parallel capable)
+  - `plan-phase.md`: Generate PLAN.md from roadmap
+  - `map-codebase.md`: Spawn 4 parallel mapper agents
+  - `research-phase.md`: Research and synthesize findings
+  - `verify-phase.md`: Validate execution quality
+- Pattern: Orchestrator reads context, spawns agents via Task(), waits for results, validates output
 
-**agents/**
-- Purpose: Specialized Claude instances for focused work
-- Contains: 11 markdown agent definitions with role, execution flow, validation rules
-- Agents: Planner (plan creation), Executor (plan execution), Verifier (testing), Debugger (failure analysis), Researchers (domain discovery), Roadmapper (phase structure), Checkers (quality), Mapper (codebase analysis)
-- Spawning: Via Task tool from workflows; each agent runs with fresh 200k context
+**get-shit-done/templates/:**
+- Purpose: Document templates for user projects
+- Contains: Markdown files with frontmatter + variable placeholders
+- Sub-directories:
+  - Root: `project.md`, `roadmap.md`, `requirements.md`, `plan.md`, `summary.md`, `state.md`, etc.
+  - `codebase/`: Templates for codebase analysis (STACK.md, ARCHITECTURE.md, etc.)
+  - `research-project/`: Special templates for research phases
+- Usage: Workflows use gsd-tools `template fill` to pre-populate PLAN.md, SUMMARY.md, etc.
 
-**.planning/** (Project Directory)
-- Purpose: Persistent project state across sessions
-- Initialization: Created by `/gsd:new-project`
-- Structure: Mirrors phases in subdirectories; documents track decisions, execution, metrics
-- Commitment: All changes committed to git (unless commit_docs: false in config)
+**get-shit-done/references/:**
+- Purpose: Shared knowledge base for agents
+- Contains: Detailed guides on specific patterns (checkpoints, git, verification, TDD, etc.)
+- Key files:
+  - `checkpoints.md`: Checkpoint protocol (when to use, how to handle)
+  - `git-integration.md`: Git workflow (branching, committing, pushing)
+  - `verification-patterns.md`: How to verify execution
+  - `tdd.md`: Test-driven development patterns
+  - `model-profiles.md`: Model selection guidance
+  - `planning-config.md`: Configuration system
+- Usage: Agents load via `@~/.claude/get-shit-done/references/filename.md` in context
 
-**.planning/codebase/**
-- Purpose: Structured analysis of existing codebase
-- Created by: `/gsd:map-codebase` workflow spawning gsd-codebase-mapper agent
-- Contains: 7 documents (STACK.md, INTEGRATIONS.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, CONCERNS.md)
-- Usage: Referenced during planning (`/gsd:plan-phase`) to understand existing code patterns and tech choices
+**hooks/:**
+- Purpose: Runtime hooks for terminal integration
+- Contains: JavaScript files for statusline rendering, update checking
+- Built to: `dist/` by `npm run build:hooks` (esbuild bundled)
+- Installed: Copied to runtime config directory for local use
+- Not critical: Optional enhancements to UX
 
-**.planning/phases/{N}-{name}/**
-- Purpose: Organize all work for a single phase
-- Naming: Padded decimal (01-project-setup, 02.1-critical-fix, 03-ui-implementation)
-- Contents: PLAN.md files, SUMMARY.md files, optional CONTEXT.md, RESEARCH.md, deferred-items.md
-- Lifecycle: Created during roadmap generation; populated during planning; completed after execution
+**scripts/:**
+- Purpose: Build and utility scripts
+- Contains: `build-hooks.js` (esbuild bundler for hooks)
+- Run: `npm run build:hooks` before package publish
 
-**.planning/config.json**
-- Purpose: Workflow preferences (centralized configuration)
-- Usage: Loaded by workflows via gsd-tools; affects subagent model selection, git strategy, research behavior
-- Schema: Defines model_profile (quality/balanced/budget), commit_docs (bool), branching_strategy (none/phase/milestone), research (bool), verifier (bool), etc.
-
-**scripts/**
-- Purpose: Build and utility operations
-- Contents: build-hooks.js (compiles git hooks during npm publish)
-- Execution: Triggered by npm scripts (prepublishOnly, build:hooks)
+**.planning/:**
+- Purpose: GSD's own project planning (GSD uses GSD to build GSD)
+- Contains: PROJECT.md, ROADMAP.md, STATE.md, config.json, and 5 completed phases
+- Key files:
+  - `STATE.md`: GSD's current phase (Phase 5 complete as of 2026-02-28)
+  - `ROADMAP.md`: GSD's 5-phase roadmap
+  - `phases/`: Each phase has multiple PLAN.md + SUMMARY.md files
+  - `codebase/`: GSD's own codebase analysis (if map-codebase was run)
+- Demonstrates: GSD's system working on itself; real example of state, decisions, execution
 
 ## Key File Locations
 
 **Entry Points:**
-- `/bin/install.js` — Installation script (called via `npx get-shit-done-cc@latest`)
-- `/commands/gsd/*.md` — Command definitions (exposed as `/gsd:{command}` in Claude Code)
+- `bin/install.js`: Global/local installer (runs on `npx get-shit-done-cc`)
+- `commands/gsd/new-project.md`: Project initialization entry (runs on `/gsd:new-project`)
+- `get-shit-done/bin/gsd-tools.cjs`: CLI utility entry (called by agents/workflows)
 
 **Configuration:**
-- `.planning/config.json` — Project workflow preferences (model profile, branching, research)
-- `package.json` — npm package metadata, dependencies (currently none), version
+- `package.json`: NPM package definition, versions, dependencies
+- `get-shit-done/templates/config.json`: Default config template
+- `.planning/config.json`: GSD's own configuration
 
 **Core Logic:**
-- `/get-shit-done/bin/gsd-tools.cjs` — Central CLI for state/phase/config operations (120+ commands)
-- `/get-shit-done/workflows/*.md` — Implementation of user commands
-
-**Subagents:**
-- `/agents/gsd-*.md` — Agent implementations (planner, executor, verifier, debugger, researchers, roadmapper, checkers, mapper)
+- `agents/*.md`: Agent role definitions and execution rules (11 agents)
+- `get-shit-done/workflows/*.md`: Orchestrator logic (20+ workflows)
+- `commands/gsd/*.md`: User command entry points (30+ commands)
+- `get-shit-done/bin/gsd-tools.cjs`: Centralized utilities (state, config, git, phases)
 
 **Testing:**
-- `/get-shit-done/bin/gsd-tools.test.cjs` — Node test suite for gsd-tools CLI
+- `get-shit-done/bin/gsd-tools.test.cjs`: Tests for gsd-tools CLI
+- Run: `npm test`
+
+**Documentation:**
+- `README.md`: Main documentation, feature overview
+- `docs/USER-GUIDE.md`: User guide
+- `get-shit-done/references/*.md`: Agent reference guides
+- `.planning/PROJECT.md`: GSD's project spec
+- `CHANGELOG.md`: Release notes
+- `SECURITY.md`: Security policy
 
 ## Naming Conventions
 
 **Files:**
-
-- **Command files** (`commands/gsd/`): kebab-case matching command name (new-project.md, plan-phase.md)
-- **Workflow files** (`workflows/`): kebab-case matching workflow purpose (new-project.md, execute-phase.md)
-- **Agent files** (`agents/`): gsd-kebab-case (gsd-planner.md, gsd-executor.md)
-- **Template files** (`templates/`): kebab-case for document type (project.md, requirements.md, phase-prompt.md)
-- **Phase directories** (`.planning/phases/`): NN-kebab-case (01-authentication, 02-api-foundation, 02.1-security-fix)
-- **Plan files** (`.planning/phases/NN-name/`): NN-MM-TYPE.md format (01-01-PLAN.md, 01-01-SUMMARY.md, 01-CONTEXT.md, 01-RESEARCH.md)
+- Commands: `kebab-case.md` (e.g., `new-project.md`, `execute-phase.md`) → auto-registers as `/gsd:kebab-case`
+- Agents: `gsd-agent-name.md` (e.g., `gsd-executor.md`, `gsd-planner.md`)
+- Workflows: `kebab-case.md` (e.g., `new-project.md`, `execute-phase.md`)
+- Planning docs: UPPERCASE.md (e.g., `PROJECT.md`, `ROADMAP.md`, `PLAN.md`, `SUMMARY.md`)
+- Codebase analysis: UPPERCASE.md (e.g., `STACK.md`, `ARCHITECTURE.md`, `STRUCTURE.md`)
+- Config: `config.json` (in `.planning/` and `get-shit-done/templates/`)
+- Tests: `filename.test.cjs` or `filename.spec.cjs`
 
 **Directories:**
+- Commands: `/commands/gsd/` (flat, single level)
+- Agents: `/agents/` (flat, single level)
+- Workflows: `/get-shit-done/workflows/` (flat, single level)
+- Templates: `/get-shit-done/templates/` (flat root + `codebase/`, `research-project/` subdirs)
+- References: `/get-shit-done/references/` (flat, single level)
+- Project planning: `.planning/phases/XX-phase-name/` (decimal phase numbering)
+- Codebase maps: `.planning/codebase/` (7 files: STACK.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, INTEGRATIONS.md, CONCERNS.md)
 
-- **Functional directories**: lowercase, hyphenated (commands, workflows, agents, templates, references, get-shit-done)
-- **Project directories**: pattern-based (phases/{NN}-{slug}, todos/pending, milestones/v{X.Y}-phases)
+**Phases:**
+- Format: `{decimal}-{slug}` where decimal is phase number (1, 1.1, 2, etc.)
+- Examples: `01-state-infrastructure`, `02-launcher`, `03-integration-and-failure-hardening`
+- Directory structure: `.planning/phases/01-state-infrastructure/` contains `01-01-PLAN.md`, `01-01-SUMMARY.md`, etc.
 
-**Code/Script names:**
+**Plans:**
+- Format: `{phase}-{plan}-{slug}.md`
+- Frontmatter: `phase:`, `plan:`, `type:`, `autonomous:`, `wave:`, `depends_on:`
+- Examples: `01-01-setup-state-persistence.md`, `03-02-install-yolo-command.md`
 
-- **CLI tools**: kebab-case (gsd-tools.cjs, build-hooks.js)
-- **Variables**: camelCase (INIT_RAW, PLAN_INDEX, planStartTime)
+**Commits:**
+- Format: `{type}({scope}): {description}` where scope is phase-plan
+- Examples:
+  - `feat(01-01): add state persistence layer`
+  - `fix(03-02): handle phase gap detection`
+  - `docs(init): project initialized`
+  - `test(05-01): add STOPPED_PHASE detection tests`
 
 ## Where to Add New Code
 
-**New Command:**
-- Create: `/commands/gsd/{command-name}.md`
-- Template: Use existing command as example (e.g., `plan-phase.md`)
-- Structure: YAML frontmatter (name, description, tools, argument-hint) + execution_context + process sections
-- Depends on: Reference a workflow in execution_context
+**New Feature (entirely new capability):**
+- Primary code: Create PLAN.md in `.planning/phases/XX-phase-name/` with phase/plan/type/task structure
+- Execution: `/gsd:execute-phase XX` runs plan with atomic commits
+- Tests: Write tests per TESTING.md patterns from codebase analysis
+- Documentation: Update .planning/PROJECT.md, ROADMAP.md if it changes scope
 
-**New Workflow:**
-- Create: `/get-shit-done/workflows/{workflow-name}.md`
-- Template: Use `new-project.md` or `execute-phase.md` as reference
-- Pattern: Step-by-step procedures with bash calls to gsd-tools, subagent spawning, decision gates
-- Responsibility: Orchestrate work, keep context lean, call gsd-tools for state operations
+**New Command (new /gsd: entry point):**
+- Implementation: Create `/commands/gsd/command-name.md` with `<objective>`, `<execution_context>`, `<process>`
+- Link to workflow: Point `<execution_context>` to corresponding workflow in `get-shit-done/workflows/command-name.md`
+- Auto-registration: Command auto-registers as `/gsd:command-name` when installed
 
-**New Subagent:**
-- Create: `/agents/gsd-{agent-name}.md`
-- Template: Use `gsd-executor.md` or `gsd-planner.md` as reference
-- Pattern: Role definition, execution flow (steps), validation rules, decision trees
-- Spawning: Called via Task tool from workflow with `subagent_type="gsd-{agent-name}"`
-- Output: Write documents directly (no context transfer back); return confirmation
+**New Workflow (new orchestration logic):**
+- Implementation: Create `/get-shit-done/workflows/workflow-name.md` with `<process>` steps
+- Pattern: Describe orchestration steps, agent spawning via Task(), checkpoint handling
+- Reference: Use templates from `get-shit-done/templates/` for document generation
+- Utilities: Call gsd-tools.cjs for state management, config parsing, git commits
 
-**New Template:**
-- Create: `/get-shit-done/templates/{document-type}.md`
-- Purpose: Scaffolding for standard documents created during workflows
-- Includes: File template (markdown structure), guidelines, evolution/lifecycle notes, examples
-- Usage: Workflows reference templates when creating project documents
+**New Agent (new specialized role):**
+- Implementation: Create `/agents/gsd-agent-name.md` with `<role>`, execution rules, output format
+- Pattern: Define what the agent does, what context it needs, what it outputs
+- Spawning: Workflows spawn via Task() with agent name; gsd-tools resolves model
+- Model profile: Add entry to MODEL_PROFILES in gsd-tools.cjs if new agent type
 
-**New Reference:**
-- Create: `/get-shit-done/references/{pattern-name}.md`
-- Purpose: Shared protocols, patterns, decision tables
-- Usage: Referenced by workflows and agents via @-references
+**New Template (new document type):**
+- For user projects: Create `/get-shit-done/templates/document-name.md` with frontmatter + placeholders
+- For codebase analysis: Create `/get-shit-done/templates/codebase/DOCUMENT.md`
+- Usage: Workflows use `template fill` command to pre-populate with variables
 
-**New gsd-tools Command:**
-- Location: `/get-shit-done/bin/gsd-tools.cjs`
-- Pattern: Add command case to main switch statement, implement function, update usage comment
-- Category: Group with related commands (state, phase, roadmap, validation, etc.)
-- Test: Add test case to `/get-shit-done/bin/gsd-tools.test.cjs`
+**New Reference Guide (shared knowledge):**
+- Implementation: Create `/get-shit-done/references/topic-name.md` with detailed explanation
+- Usage: Agents/workflows load via `@~/.claude/get-shit-done/references/topic-name.md`
+- Pattern: Explain HOW to do something (checkpoints, git, verification, TDD, etc.)
+
+**Utilities (centralized patterns):**
+- Implementation: Add new command to `/get-shit-done/bin/gsd-tools.cjs`
+- Pattern: Function that handles repeated bash/fs/git patterns
+- Used by: Agents/workflows call via `node ~/.claude/get-shit-done/bin/gsd-tools.cjs <new-command>`
 
 ## Special Directories
 
-**`.planning/` directory:**
-- Purpose: Project state and metadata
-- Generated: By workflows (never manually created)
-- Committed: Yes (all .planning/ tracked in git by default)
-- Cleanup: No cleanup — persists across sessions and phases
-- Note: If user sets `commit_docs: false`, planning docs not committed but still created on disk
+**.planning/:**
+- Purpose: GSD's own project planning and user projects' planning
+- Generated: By `/gsd:new-project` command
+- Committed: YES, all files committed to git (state is sacred)
+- Subdirectories:
+  - `phases/`: Numbered phases with PLAN.md + SUMMARY.md files
+  - `codebase/`: Static analysis documents (if `/gsd:map-codebase` run)
+  - `research/`: Research findings (if research done)
+- Critical files:
+  - `STATE.md`: Current position, decisions, metrics (never delete)
+  - `ROADMAP.md`: Project phases and progress (never delete)
+  - `config.json`: User preferences (customizable)
 
-**`.planning/codebase/` directory:**
-- Purpose: Structured codebase analysis (STACK.md, INTEGRATIONS.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, CONCERNS.md)
-- Generated: By `/gsd:map-codebase` workflow
-- Committed: Yes (standard behavior)
-- Refresh: User can re-run map-codebase to update (deletes and recreates directory)
-- Usage: Referenced by plan-phase workflow to understand existing code
+**.planning/codebase/:**
+- Purpose: Persistent codebase analysis (architecture, stack, conventions, testing patterns, concerns)
+- Generated: By `/gsd:map-codebase` command using 4 parallel mapper agents
+- Committed: YES, documents committed to git
+- Contains: 7 files (STACK.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, INTEGRATIONS.md, CONCERNS.md)
+- Lifecycle: Can be refreshed anytime; new runs overwrite previous analysis
 
-**`hooks/` and `hooks/dist/` directories:**
-- Purpose: Git hook scripts for workflow automation
-- Generated: By build-hooks.js during npm publish
-- Committed: `hooks/dist/` is committed (compiled output); source hooks compiled to dist
-- Installation: Copied to `.git/hooks/` by installer
+**node_modules/:**
+- Purpose: NPM dependencies
+- Generated: By `npm install`
+- Committed: NO (in .gitignore)
+- Cleanup: Run `npm ci` to restore from lock file
 
-**`.github/` directory:**
-- Purpose: GitHub configuration (workflows, issue templates)
-- Generated: Committed to repo (not dynamically generated)
-- Usage: GitHub Actions CI/CD, issue tracking
-
-**`docs/` directory:**
-- Purpose: User-facing documentation (USER-GUIDE.md, etc.)
-- Generated: Committed to repo (manually maintained)
-- Usage: Online documentation, installation guides
+**get-shit-done/bin/dist/**
+- Purpose: Built hooks (generated)
+- Generated: By `npm run build:hooks`
+- Committed: Depends on build settings (check .gitignore)
 
 ---
 
-*Structure analysis: 2026-02-17*
+*Structure analysis: 2026-02-28*

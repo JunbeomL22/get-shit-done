@@ -1,224 +1,240 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-17
+**Analysis Date:** 2026-02-28
 
 ## Naming Patterns
 
 **Files:**
-- Kebab-case for CLI scripts and tools: `gsd-statusline.js`, `gsd-check-update.js`, `gsd-tools.cjs`
-- Camel case for hook scripts: `build-hooks.js`
-- Test files use `.test.cjs` or `.spec.cjs` suffix: `gsd-tools.test.cjs`
+- Kebab-case for filenames: `gsd-tools.cjs`, `gsd-statusline.js`, `gsd-check-update.js`
+- Test files use `.test.cjs` suffix: `gsd-tools.test.cjs`
+- Commands and executables use leading `gsd-` prefix
+- No file extension for some utilities or use explicit `.js`, `.cjs` for Node.js CommonJS modules
 
 **Functions:**
-- camelCase for function names: `getGlobalDir()`, `parseIncludeFlag()`, `safeReadFile()`
-- camelCase for arrow functions assigned to constants: `const expanded = expandTilde(path)`
-- Prefix helper functions with `cmd` for CLI commands: `cmdGenerateSlug()`, `cmdStateLoad()`, `cmdHistoryDigest()`
-- Prefix validation functions with `verify` or `validate`: `verifyInstalled()`, `verifyPathExists()`, `validateConsistency()`
-
-**Constants:**
-- SCREAMING_SNAKE_CASE for config constants: `TOOLS_PATH`, `DIST_DIR`, `HOOKS_TO_COPY`, `MODEL_PROFILES`, `PATCHES_DIR_NAME`, `MANIFEST_NAME`
-- camelCase for runtime/option flags: `hasGlobal`, `hasLocal`, `hasClaude`, `selectedRuntimes`, `explicitConfigDir`
-- camelCase for color/style constants: `cyan`, `green`, `yellow`, `dim`, `reset`
-- camelCase for object constants with metadata: `colorNameToHex`, `claudeToOpencodeTools`, `claudeToGeminiTools`
+- camelCase for all function declarations: `parseIncludeFlag`, `safeReadFile`, `loadConfig`, `createTempProject`, `cleanup`
+- Command functions use `cmd` prefix followed by PascalCase action: `cmdGenerateSlug`, `cmdCurrentTimestamp`, `cmdListTodos`, `cmdHistoryDigest`, `cmdStateLoad`, `cmdFindPhase`
+- Helper functions use descriptive verbs: `execGit`, `normalizePhaseName`, `extractFrontmatter`, `reconstructFrontmatter`, `spliceFrontmatter`, `parseMustHavesBlock`
 
 **Variables:**
-- camelCase for all variables: `tmpDir`, `phaseDir`, `settingsPath`, `configDir`
-- Prefix boolean checks with `has`, `is`, or `should`: `hasExisting`, `isOpencode`, `isGlobal`, `shouldInstallStatusline`
-- Plural names for collections: `args`, `results`, `entries`, `orphanedFiles`, `allowedTools`, `tools`
+- camelCase: `tmpDir`, `selectedRuntimes`, `cacheFile`, `projectVersionFile`, `globalVersionFile`, `phaseDir`
+- Plural form for arrays/collections: `HOOKS_TO_COPY`, `files`, `decisions`, `phases`, `patterns`
+- Constants use UPPER_SNAKE_CASE: `TOOLS_PATH`, `HOOKS_DIR`, `DIST_DIR`, `VERSION_FILE`
+- Descriptive names: `result.success`, `digest.phases`, `cache.update_available`, `config.commit_docs`
 
-**Types/Objects:**
-- Object keys use kebab-case in config/metadata: `"model_profile"`, `"commit_docs"`, `"search_gitignored"`, `"phase-number"`, `"key-decisions"`
-- Object keys use camelCase in runtime objects: `modelProfile`, `commitDocs`, `searchGitignored`
+**Types:**
+- No TypeScript in main codebase (pure Node.js/CommonJS)
+- Object properties use snake_case in JSON structures: `success`, `error`, `update_available`, `phase_dir`, `patterns_established`, `key_decisions`, `dependency_graph`
+- Nested objects flatten nested names with underscores: `tech_stack`, `patterns_established`, `key_decisions`, `dependency_graph`
 
 ## Code Style
 
 **Formatting:**
-- No automated formatter (no .prettierrc or eslint config detected)
-- 2-space indentation standard
-- Lines use natural length (no fixed line limit observed, though most lines stay under 100 chars)
-- Curly braces on same line: `function name() {`
-- Ternary operators aligned horizontally for readability: `const value = condition ? trueValue : falseValue`
+- No automated formatter configured (Prettier/ESLint not in dependencies)
+- Manual formatting conventions observed:
+  - 2-space indentation (seen in all test and hook files)
+  - Opening braces on same line: `function name() {`, `describe('name', () => {`
+  - Semicolons used consistently throughout
 
 **Linting:**
-- No ESLint or Prettier configuration file present
-- Code style enforced by convention and manual review
-- Node.js built-in modules preferred: `require('node:test')`, `require('node:assert')`
+- No linting configuration detected (no `.eslintrc`, `eslint.config.js`, or `biome.json`)
+- Manual quality checks through testing
+
+**Command Separation:**
+- Section headers use comment line separators for visual organization:
+  ```javascript
+  // ─── Helpers ──────────────────────────────────────────────────────────────────
+  // ─── Commands ─────────────────────────────────────────────────────────────────
+  // ─── State Progression Engine ────────────────────────────────────────────────
+  ```
 
 ## Import Organization
 
 **Order:**
-1. Node.js built-in modules: `require('fs')`, `require('path')`, `require('os')`, `require('child_process')`
-2. Local modules relative imports: `const TOOLS_PATH = path.join(__dirname, 'gsd-tools.cjs')`
-3. Constants and metadata: Color codes, mappings, configuration tables
-4. Helper function definitions
-5. Main logic
+1. Built-in Node.js modules first: `require('fs')`, `require('path')`, `require('os')`, `require('readline')`, `require('crypto')`, `require('https')`, `require('child_process')`
+2. Local modules/files next: `require('../package.json')`, `require('node:test')`
+3. Destructuring used: `const { test, describe, beforeEach, afterEach } = require('node:test')`
 
 **Path Aliases:**
-- No path aliases used
-- Relative paths with `path.join(__dirname, ...)` for module discovery
-- Environment variable expansion: `process.cwd()`, `os.homedir()`, `process.env.CLAUDE_CONFIG_DIR`
+- Direct relative paths used: `'../package.json'`, `'../..'`
+- No path alias configuration
 
-**Examples:**
-```javascript
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { execSync } = require('child_process');
-
-const TOOLS_PATH = path.join(__dirname, 'gsd-tools.cjs');
-```
+**require() vs import:**
+- CommonJS `require()` exclusively (codebase is Node.js, not ES modules)
+- Example: `const fs = require('fs');`
 
 ## Error Handling
 
 **Patterns:**
-- Try-catch blocks with silent failure for non-critical operations:
-  ```javascript
-  try {
-    return JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-  } catch {
-    return {};
-  }
-  ```
-- Graceful degradation: Missing files return empty objects, missing directories are created on demand
-- Process exit on critical failures: `process.exit(1)` for unrecoverable errors like conflicting CLI flags
-- Error message prefixes with context: `${yellow}⚠${reset}`, `${yellow}✗${reset}`, `${green}✓${reset}`
-- Comprehensive error checking in file operations: `fs.existsSync()` checks before reading, creating directories recursively with `{ recursive: true }`
 
-**Error Messages:**
-```javascript
-// User-facing errors with color codes
-console.error(`  ${yellow}Cannot specify both --global and --local${reset}`);
-// Silent failures for convenience
-try { const config = JSON.parse(content); } catch {}
-// Command validation with helpful context
-if (!nextArg || nextArg.startsWith('-')) {
-  console.error(`  ${yellow}--config-dir requires a path argument${reset}`);
-  process.exit(1);
-}
-```
+Two main error handling functions used throughout:
+
+1. **Critical Errors (early exit):**
+   ```javascript
+   function error(message) {
+     process.stderr.write('Error: ' + message + '\n');
+     process.exit(1);
+   }
+   ```
+   Used for validation failures, missing required args: `error('text required for slug generation')`
+
+2. **Graceful Failures (try-catch):**
+   ```javascript
+   function safeReadFile(filePath) {
+     try {
+       return fs.readFileSync(filePath, 'utf-8');
+     } catch {
+       return null;
+     }
+   }
+   ```
+   Used for file I/O, JSON parsing, filesystem operations
+
+3. **Execution Error Wrapping (process spawning):**
+   ```javascript
+   try {
+     const result = execSync(`node "${TOOLS_PATH}" ${args}`, {...});
+     return { success: true, output: result.trim() };
+   } catch (err) {
+     return {
+       success: false,
+       output: err.stdout?.toString().trim() || '',
+       error: err.stderr?.toString().trim() || err.message,
+     };
+   }
+   ```
+
+**Patterns for CLI Commands:**
+- Validation comes first: check args, check file existence, check required fields
+- Return early on validation failure via `error()` function
+- Large JSON payloads (>50KB) written to temp files with `@file:` prefix instead of stdout
+
+**Patterns for Tests:**
+- Silent failures in hooks (statusline, update-check) use try-catch without logging
+- Test assertions use template strings for error messages: `` assert.ok(result.success, `Command failed: ${result.error}`) ``
 
 ## Logging
 
-**Framework:** Native `console` object
-- `console.log()` for output and user feedback
-- `console.error()` for error messages
-- No external logging libraries
+**Framework:** console/process.stderr/process.stdout (built-in)
 
 **Patterns:**
-- Status updates prefixed with symbol + color: `console.log(\`  ${green}✓${reset} Installed agents\`)`
-- Progress indicators: `${yellow}⚠${reset}` for warnings, `${green}✓${reset}` for success, `${cyan}►${reset}` for info
-- Colored text for emphasis: cyan for commands/paths, green for success, yellow for warnings
-- Dim text for secondary information: `${dim}example${reset}` for optional values or examples
-- Multi-line messages with consistent indentation (2 spaces after status symbol)
-- Silent failures in utility functions to prevent output pollution: catch blocks without logging
+- `process.stdout.write()` for output (no trailing newlines unless needed)
+- `process.stderr.write()` for errors with format: `'Error: ' + message + '\n'`
+- Status hooks print directly to stdout with ANSI color codes
+- No log levels (debug, info, warn, error) - all output is either success or error
+- JSON output via `JSON.stringify(result, null, 2)` with 2-space indentation
+- Large JSON outputs (>50KB) written to temp files to avoid bash buffer overflow
 
-**Output in statusline hook** (gsd-statusline.js):
+**Usage Examples:**
 ```javascript
-// Silent failures to avoid breaking statusline rendering
-try {
-  const data = JSON.parse(input);
-  // ... process data ...
-} catch (e) {
-  // Silent fail - don't break statusline on parse errors
-}
+// Success output
+process.stdout.write(json);
+
+// Error output
+process.stderr.write('Error: ' + message + '\n');
+
+// Status output with colors
+process.stdout.write(`${gsdUpdate}\x1b[2m${model}\x1b[0m │ ...`);
 ```
 
 ## Comments
 
 **When to Comment:**
-- Complex logic that needs explanation: mapping between tool name formats (Claude → OpenCode → Gemini)
-- Non-obvious design decisions: "// Shell doesn't expand ~ in env vars passed to node"
-- Critical sections with multiple steps: file modification detection, JSONC parsing
-- Algorithm explanations: manifest generation, frontmatter extraction
-
-**JSDoc/TSDoc:**
-- Used for public functions and command handlers
-- Parameter types documented: `@param {string} runtime`, `@param {boolean} isGlobal`
-- Return types documented: `@returns {string}`, `@returns {null|undefined|string}`
-- Purpose and usage documented for complex utility functions
+- Section headers use visual separator lines (dashes and spaces) for code organization
+- Inline comments explain non-obvious logic, especially in calculation or parsing
+- Comments above functions explain purpose when not obvious from name
+- Historical/context comments included for workarounds and compatibility notes
 
 **Examples:**
 ```javascript
-/**
- * Get the config directory path relative to home directory for a runtime
- * Used for templating hooks that use path.join(homeDir, '<configDir>', ...)
- * @param {string} runtime - 'claude', 'opencode', or 'gemini'
- * @param {boolean} isGlobal - Whether this is a global install
- */
-function getConfigDirFromHome(runtime, isGlobal) {
-  // ...
-}
+// Large payloads exceed Claude Code's Bash tool buffer (~50KB).
+// Write to tmpfile and output the path prefixed with @file: so callers can detect it.
 
-/**
- * Process Co-Authored-By lines based on attribution setting
- * @param {string} content - File content to process
- * @param {null|undefined|string} attribution - null=remove, undefined=keep, string=replace
- * @returns {string} Processed content
- */
-function processAttribution(content, attribution) {
-  // ...
-}
+// Create temp directory structure
+function createTempProject() { ... }
+
+// Check project directory first (local install), then global
 ```
+
+**JSDoc/TSDoc:**
+- Not used in this codebase
+- Comments are inline, not formal doc blocks
 
 ## Function Design
 
 **Size:**
-- Small focused functions preferred (most helpers are 5-20 lines)
-- Utility functions extracted for reuse across multiple command handlers
-- Complex operations broken into helpers with clear names
+- Range from ~5 lines (helpers) to ~200+ lines (main CLI command routers)
+- Command functions (`cmdX`) typically 30-80 lines
+- Complex parsing functions like `extractFrontmatter` are 60-70 lines
 
 **Parameters:**
-- Minimal parameters (1-3 typical, max 4-5 for complex operations)
-- Related parameters grouped logically: `install(isGlobal, runtime)`
-- Optional parameters positioned last with default values: `function safeReadFile(filePath, defaultValue = null)`
-- Destructuring for config objects: `{ recursive: true }` for fs options
-- Rest parameters for variable-length collections: `const escapeShell = args.map(...)`
+- Most command functions take 2-3 parameters: `(cwd, argument, raw)`
+- `cwd` represents working directory (for running in test environments or subprocesses)
+- `raw` boolean flag indicates raw output format (string) vs JSON
+- Optional parameters passed as flags in string args, parsed by function
 
 **Return Values:**
-- Consistent return types: functions return objects/arrays for data, undefined for side effects
-- Explicit null for missing values: `return null` rather than implicit undefined
-- Error objects included in success/error tuples: `{ success: true/false, output, error }`
-- Chainable returns where appropriate: File operations return modified content for piping
-
-**Examples:**
-```javascript
-// Concise utility with clear purpose
-function parseIncludeFlag(args) {
-  const includeIndex = args.indexOf('--include');
-  if (includeIndex === -1) return new Set();
-  const includeValue = args[includeIndex + 1];
-  if (!includeValue) return new Set();
-  return new Set(includeValue.split(',').map(s => s.trim()));
-}
-
-// Returns object tuple for error handling
-function runGsdTools(args, cwd = process.cwd()) {
-  try {
-    const result = execSync(`node "${TOOLS_PATH}" ${args}`, { cwd, encoding: 'utf-8' });
-    return { success: true, output: result.trim() };
-  } catch (err) {
-    return { success: false, output: err.stdout?.toString().trim() || '', error: err.message };
-  }
-}
-```
+- Command functions call `output()` or `error()` rather than returning
+- Helper functions return values: strings, objects, null, or booleans
+- No null coalescing; explicit null checks with pattern: `value || default`
 
 ## Module Design
 
 **Exports:**
-- No explicit module.exports pattern (CommonJS implicit)
-- Script files execute main logic at module level
-- Utility functions defined before first use
-- Test files import helpers at top: `const { test, describe, beforeEach, afterEach } = require('node:test')`
+- Single large file with multiple commands: `gsd-tools.cjs` (5243 lines)
+- No ES6 exports - pure Node.js module pattern
+- Main routing happens at end of file via CLI argument parsing
 
 **Barrel Files:**
-- Not used in this codebase
-- Each command file is standalone (gsd-tools.cjs is the single command aggregator)
+- Not used; single monolithic file structure
+- Templates and references in separate directories but not re-exported
 
-**Organization Pattern:**
-- Single-responsibility files: `gsd-statusline.js` only handles statusline rendering
-- Command-specific files contain all related logic: `install.js` handles all install variants
-- Centralized utilities in `gsd-tools.cjs`: ~5200 lines containing all workflow commands
+**Module Boundaries:**
+- `/get-shit-done/bin/` - Core CLI tools (`gsd-tools.cjs`, `gsd-tools.test.cjs`)
+- `/bin/` - Installation/setup (`install.js`)
+- `/hooks/` - Editor integration hooks (statusline, update-check)
+- `/scripts/` - Build scripts (`build-hooks.js`)
+- `/agents/` - Agent templates (markdown files)
+- `/commands/` - Command definitions (YAML/markdown)
+
+## Example Code Pattern
+
+From `gsd-tools.cjs`, showing typical patterns:
+
+```javascript
+// Input validation pattern
+function cmdGenerateSlug(text, raw) {
+  if (!text) {
+    error('text required for slug generation');
+  }
+
+  const slug = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  const result = { slug };
+  output(result, raw, slug);
+}
+
+// Config loading with defaults
+function loadConfig(cwd) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  const defaults = {
+    model_profile: 'balanced',
+    commit_docs: true,
+    // ... more defaults
+  };
+
+  try {
+    const raw = fs.readFileSync(configPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return parsed;
+  } catch {
+    return defaults;
+  }
+}
+```
 
 ---
 
-*Convention analysis: 2026-02-17*
+*Convention analysis: 2026-02-28*

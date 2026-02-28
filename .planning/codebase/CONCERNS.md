@@ -1,351 +1,244 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-17
+**Analysis Date:** 2026-02-28
 
-## Tech Debt
+## Critical Bugs
 
-**Silent JSON Parsing Failures:**
-- Issue: Multiple places parse JSON with silent error handling (catch blocks that return empty/default values)
-  - `bin/install.js` (lines 204-207, 917, 1108): readSettings() catches parse errors, returns empty object
-  - `get-shit-done/bin/gsd-tools.cjs`: manifest/meta parse failures silently return empty arrays
-- Files: `bin/install.js`, `get-shit-done/bin/gsd-tools.cjs`
-- Impact: Corrupted JSON files (settings.json, opencode.json, config.json) won't be reported to user; silently loses configuration. User won't know their settings were lost until they try to use them.
-- Fix approach: Log errors to stderr even when recovering gracefully. Create separate silent-recover and verbose-parse modes. For critical files (settings.json), verify round-trip parse before accepting.
+**STOPPED_PHASE Off-by-One Detection:**
+- Issue: When a phase completes its plans and summaries but verification finds gaps, `yolo.md` derives the stopped phase incorrectly
+- Files: `get-shit-done/workflows/yolo.md` (line 238 approx), `get-shit-done/bin/gsd-tools.cjs` (roadmap analyze command)
+- Impact: User sees "stopped at phase N+1" instead of phase N; wrong phase directory is checked for VERIFICATION.md; case B2 (unexpected error) fires instead of B1 (verification failure); resume skips gap closure for the actual failed phase
+- Root cause: `STOPPED_PHASE = next_phase` from roadmap analyze, which skips phases with `disk_status='complete'` even if `roadmap_complete=false`. Phase N has all SUMMARYs written but never calls `phase complete`, so roadmap checkbox stays unchecked, yet disk_status='complete'
+- Fix approach: Scan phases array for `disk_status='complete' AND roadmap_complete=false` — this uniquely identifies the failed phase. Requires reading full roadmap analyze output's phases array
 
-**Monolithic gsd-tools CLI (5243 lines):**
-- Issue: Single file handles 100+ subcommands across state management, phase operations, verification, templating, and scaffolding
-- Files: `get-shit-done/bin/gsd-tools.cjs`
-- Impact: Hard to locate bugs, difficult to test individual commands, high cognitive load for modifications, single point of failure for entire CLI layer
-- Fix approach: Split into module-based structure (phase-ops.js, state-ops.js, verify-ops.js, etc.) with exports, then orchestrate from wrapper entry point. Maintain gsd-tools.cjs as thin dispatcher.
+**Commands Not Installed After Source Creation:**
+- Issue: `commands/gsd/yolo.md` exists in project repo but is not deployed to `~/.claude/commands/gsd/yolo.md` after initial creation
+- Files: `commands/gsd/yolo.md` (source), installer target `~/.claude/commands/gsd/yolo.md`
+- Impact: `/gsd:yolo` slash command unavailable to users unless installer is re-run manually; documented in v1-MILESTONE-AUDIT.md as "deployment gap"
+- Fix approach: Re-run installer or manually copy source file. Installer does not auto-detect when new workflow files are added post-initial-install
 
-**File System Operations Without Safety Checks:**
-- Issue: 10 fs.rmSync() and fs.unlinkSync() calls (install.js lines 638, 689, 742, 847, 857, 866, 878, 896, 913, 1417)
-  - Most have existence checks, but some don't have recursive safety verification
-  - Paths constructed from user input (explicitConfigDir) with minimal validation
-- Files: `bin/install.js` (uninstall function at line 811+)
-- Impact: Risky uninstall could delete files beyond GSD-specific paths if path construction is wrong; edge case with symlinks could escape sandbox
-- Fix approach: Add whitelist of allowed removal paths. Before any rmSync/unlinkSync, verify path is under expected parent AND matches GSD file patterns. Log all deletions.
+## Configuration & State Issues
 
-**JSONC Parser Assumes Valid Input:**
-- Issue: parseJsonc() function (bin/install.js lines 1030-1084) does manual parsing of comments/trailing commas
-  - Falls back to JSON.parse() if manual parsing fails
-  - No limits on comment nesting depth or input size
-- Files: `bin/install.js` (line 1030+)
-- Impact: Malformed JSONC could cause regex catastrophic backtracking or infinite loops; large files could cause memory pressure
-- Fix approach: Add configurable size limit, test with adversarial inputs, consider using lightweight JSONC library instead of custom parser
+**Configuration File Serialization Errors Not Caught:**
+- Issue: Multiple `JSON.parse()` calls throughout `gsd-tools.cjs` lack error boundaries; corrupt `.planning/config.json` halts all operations
+- Files: `get-shit-done/bin/gsd-tools.cjs` (lines 178, 667, 705, 3657)
+- Impact: If config.json becomes malformed (line ending corruption, incomplete write), all state commands fail; user has no graceful recovery path
+- Current pattern: `try { JSON.parse(...) } catch { return defaults }` exists in loadConfig but not in state update flows
+- Risk level: High — config.json is written frequently during phase operations, vulnerable to process kills mid-write
 
-**Hardcoded Hook References:**
-- Issue: Hook command paths and names hardcoded across codebase (gsd-statusline.js, gsd-check-update.js)
-  - List of hooks appears in multiple places: install.js line 891, cleanup functions track orphaned versions
-  - Future hook additions require updates in multiple files
-- Files: `bin/install.js`, `hooks/` directory references in agents and commands
-- Impact: Easy to miss a hook registration when adding new ones; orphaned hook detection is fragile and will miss new hooks
-- Fix approach: Create `hooks/manifest.json` with hook metadata (name, event type, description, added_version), load from there instead of hardcoding lists
+**YOLO State Stanza Atomicity:**
+- Issue: `yolo-state` writes atomic to config.json, but multi-field updates (mode, auto_advance, yolo stanza) happen in sequence, not transactional
+- Files: `get-shit-done/bin/gsd-tools.cjs` (yolo-state write implementation)
+- Impact: If process dies between writes, state can be partially written (e.g., active=true but mode missing); next invocation may misinterpret state
+- Current mitigation: yolo.md Phase B orders writes deliberately: mode → auto_advance → yolo stanza (stanza is point-of-no-return), per STATE.md decision
+- Fragility: Order is enforced by convention in yolo.md, not by API contract; easy to misuse
 
-**Attribute Attribution Processing Complexity:**
-- Issue: Commit attribution handled with caching (attributionCache), multiple runtime branches, and state-dependent behavior
-  - getCommitAttribution() checks opencode.json, gemini settings.json, claude settings.json with different logic
-  - processAttribution() handles three cases: null (remove), undefined (keep), string (replace)
-  - Escape logic (line 280: `replace(/\$/g, '$$$$')`) is subtle and easy to break
-- Files: `bin/install.js` (lines 219-282)
-- Impact: Attribution line corruption if escape logic breaks; different runtimes have different priority rules that are hard to debug
-- Fix approach: Create shared AttributionManager class with testable methods, document the three-state semantics clearly
-
-## Known Bugs
-
-**Claude Code classifyHandoffIfNeeded False Failures:**
-- Symptoms: Agents report failure when they actually completed work; workflows incorrectly think tasks failed
-- Files: `agents/gsd-executor.md`, `get-shit-done/workflows/execute-phase.md`
-- Trigger: Certain types of output (long text, JSON, complex structures) trigger false failure reports
-- Workaround: Spot-check actual output before accepting failure report (execute-phase and quick workflows do this at lines ~131 of CHANGELOG notes)
-- Root cause: Claude Code bug #13898 - classifyHandoffIfNeeded misclassifies output as failure
-- Status: Mitigated with workaround, waiting on Claude Code fix
-
-**Phase Heading Depth Variation:**
-- Symptoms: Phase detection sometimes fails for phases marked with `####` (4 hashes) instead of `##` or `###`
-- Files: `get-shit-done/bin/gsd-tools.cjs` (phase heading parsing)
-- Trigger: Nested phase documentation or ROADMAP with inconsistent heading depths
-- Workaround: Normalize all phase headings to `##` during editing
-- Root cause: Phase heading regex may not account for variable depth
-- Fixed in: v1.19.0 (accepts both ## and ###), but may still have issues with #### and beyond
-
-**Plan-Phase Autocomplete Interference:**
-- Symptoms: `/gsd:plan-phase` command appears in autocomplete suggestions when it shouldn't (clashes with `/gsd:execute-phase`)
-- Files: Commands (TOML/markdown definitions)
-- Trigger: When autocompleting /gsd commands after `plan-`
-- Workaround: Type full command name explicitly
-- Root cause: Word "execution" in plan-phase description caused autocomplete confusion
-- Fixed in: v1.19.2 (removed "execution" from description)
-
-**ESM vs CommonJS Module Inheritance:**
-- Symptoms: "require is not defined" error when GSD scripts run in ES module contexts
-- Files: Projects with `"type": "module"` in package.json
-- Trigger: Running gsd-tools from within an ES module project
-- Workaround: GSD now writes package.json to `.claude/package.json` with `{"type":"commonjs"}` (line 1472)
-- Root cause: Node.js walks up directory tree looking for package.json; project's ES setting inherited by GSD scripts
-- Fixed in: v1.19.0 (`package.json` marker file stops inheritance)
-
-## Security Considerations
-
-**Credential Path Traversal in install.js:**
-- Risk: explicitConfigDir (from --config-dir flag) is used directly in path.join() without validation
-  - Could potentially resolve to paths outside intended scope (e.g., `--config-dir ../../etc/passwd`)
-  - Uninstall function (line 811+) uses this unvalidated path in destructive operations
-- Files: `bin/install.js` (lines 143-165, 817-818)
-- Current mitigation: Paths are validated with path.join (which normalizes), but no whitelist enforcement
-- Recommendations:
-  - Validate explicitConfigDir is a canonical absolute path under home directory or within allowed scope
-  - For uninstall, double-check path pattern matches `{config_dir}/{runtime}/` structure before any deletions
-  - Add --force flag requirement for destructive operations when custom config-dir is used
-
-**Secrets in Debug Output:**
-- Risk: Agent prompts and debugging output might inadvertently echo environment variables or file contents containing secrets (API keys, tokens, credentials)
-  - gsd-tools history-digest reads all SUMMARY.md files and could expose secrets in frontmatter
-  - Debug workflows (`gsd-debugger.md`) log detailed context that could contain keys
-- Files: `agents/gsd-debugger.md`, `get-shit-done/bin/gsd-tools.cjs` (history-digest command)
-- Current mitigation: Environment variables not explicitly sanitized before output
-- Recommendations:
-  - Add secret redaction filter (common patterns: API_KEY=, sk-, token=, password=) before any output
-  - Document that SUMMARY.md frontmatter should never contain actual secrets (only reference env var names)
-  - Test history-digest against files containing sample secrets
-
-**JSON Parsing from Untrusted Sources:**
-- Risk: parseJsonc() and manifest parsing consume user-edited files without size limits
-  - Malicious JSONC could cause ReDoS (regular expression denial of service) in comment stripping
-  - Large manifests could cause memory exhaustion
-- Files: `bin/install.js` (lines 1030-1084, JSON parse at 1107)
-- Current mitigation: None (silent error handling swallows problems)
-- Recommendations:
-  - Add max file size check (e.g., 1MB limit) before parsing
-  - Use library JSONC parser or thoroughly test regex for ReDoS vulnerability
-  - Add timeout on JSON parse operations
-
-**Hook Command Injection:**
-- Risk: Hook commands are constructed as shell commands and executed via node
-  - statuslineCommand and updateCheckCommand built from user paths (lines 1513-1518)
-  - Path templating could fail to escape special characters
-- Files: `bin/install.js` (buildHookCommand at line 192, finishInstall at line 1570+)
-- Current mitigation: Paths use forward slashes and are quoted in command string
-- Recommendations:
-  - Use execFile() instead of shell string interpolation where possible
-  - Add validation that hook paths don't contain shell metacharacters
-  - Test with paths containing spaces, $, backticks, semicolons
+**Environment Variable Handling for APIs:**
+- Issue: BRAVE_API_KEY checked via process.env and also via file existence (braveKeyFile), but no unified handling
+- Files: `get-shit-done/bin/gsd-tools.cjs` (lines 606, 2118, 4341 — three separate checks)
+- Impact: Configuration state can be inconsistent if env var set but file missing (or vice versa); websearch command behavior unclear in mixed-state scenario
+- Risk: Low — feature is optional and non-blocking, but inconsistency could confuse users
 
 ## Performance Bottlenecks
 
-**History Digest O(n*m) Complexity:**
-- Problem: history-digest command scans all phase directories and parses all SUMMARY.md files every invocation
-- Files: `get-shit-done/bin/gsd-tools.cjs` (history-digest at ~820)
-- Cause: No caching; reconstructs full history from disk every time
-- Improvement path:
-  - Cache digest output to .planning/.cache/history-digest.json with mtime tracking
-  - Invalidate cache only when SUMMARY.md files change
-  - For large projects with 100+ phases, expected 10x speedup
+**Large gsd-tools.cjs Monolith:**
+- Issue: Single 5243-line CommonJS file with 100+ exported functions and 30+ phase commands
+- Files: `get-shit-done/bin/gsd-tools.cjs`
+- Impact: Startup latency increases with file size; context switching between unrelated concerns (state, validation, templates, roadmap) within same file
+- Current mitigation: No modularization; all operations synchronous
+- Scaling concern: Adding new commands (v2 phase requirements, new verification types) pushes file toward unmaintainability
 
-**Recursive Phase Directory Scanning:**
-- Problem: Phase listing scans entire .planning/phases with readdir at multiple depth levels
-- Files: `get-shit-done/bin/gsd-tools.cjs` (phase lookup functions)
-- Cause: Finds phase by regex matching against filesystem
-- Improvement path: Build in-memory phase index at startup, refresh on demand only
-
-**Install Operation Creates Many Small Files:**
-- Problem: Copying entire get-shit-done directory (templates, workflows, agents, references) on every install
-  - ~200+ files copied even if only 2-3 are actually used by a given project
-- Files: `bin/install.js` (copyWithPathReplacement at line 683)
-- Cause: Monolithic directory structure
-- Improvement path: Lazy-load referenced files, pre-select commonly-needed sets (lite install vs full install)
-
-## Fragile Areas
-
-**YAML Frontmatter Parsing in gsd-tools:**
-- Files: `get-shit-done/bin/gsd-tools.cjs` (frontmatter extraction at ~240)
-- Why fragile:
-  - Manual line-by-line YAML parser, not a proper YAML library
-  - Assumes specific indentation (2-space), breaks with tabs or mixed indentation
-  - Array detection uses simple `startsWith('-')` check, fails with YAML block syntax or comments
-  - Nested field access (e.g., dependency-graph.provides) assumes specific nesting structure
-- Common failures:
-  - If YAML uses 4-space indentation instead of 2, arrays won't parse
-  - If frontmatter has inline comments, they'll be treated as part of values
-  - If array item has comment, it breaks parsing
-- Safe modification:
-  - Test any changes against variety of real YAML examples from existing SUMMARY.md files
-  - Consider using js-yaml library if YAML complexity grows
-  - Add unit tests for each frontmatter extraction case
-- Test coverage: gsd-tools.test.cjs has some tests (nested frontmatter) but not comprehensive
-
-**Orphaned File Detection:**
-- Files: `bin/install.js` (cleanupOrphanedFiles at line 733, cleanupOrphanedHooks at line 751)
-- Why fragile:
-  - Hardcoded list of old file names (gsd-notify.sh, statusline.js, gsd-intel-*.js)
-  - If new hooks are added without removing old versions, cleanup won't find them
-  - Pattern matching for hook identification uses string.includes() on full command path
-- Common failures:
-  - New hook version added but old version not listed in cleanup → both get installed
-  - User has custom hook with similar name → might get deleted accidentally
-  - Settings.json hook registration changes in format → old cleanup patterns won't match
-- Safe modification:
-  - Always add to orphaned lists when deprecating files
-  - Use exact filename matching instead of pattern includes()
-  - Write test for cleanup before/after state
-- Test coverage: No dedicated tests for cleanup functions
-
-**OpenCode Permission Configuration:**
-- Files: `bin/install.js` (configureOpencodePermissions at line 1091)
-- Why fragile:
-  - Constructs glob path using `${opencodeConfigDir}/get-shit-done/*`
-  - If path contains special characters, glob might not work
-  - Assumes opencode.json is valid JSONC; if corrupt, silently skips config
-  - Different logic for global vs local (isGlobal flag), easy to misconfigure one path
-- Common failures:
-  - Custom config-dir with spaces or special chars → permission glob wrong
-  - Multiple OpenCode installations → permission scope might overlap
-  - User edits opencode.json manually → JSONC parse fails, permissions not updated
-- Safe modification:
-  - Validate path before creating glob
-  - Test with paths containing spaces, hyphens, dots
-  - Add explicit error logging when opencode.json parse fails
-- Test coverage: None (no tests for OpenCode-specific logic)
-
-**Runtime-Specific Path Templating:**
-- Files: `bin/install.js` (getConfigDirFromHome at line 55, getGlobalDir at line 100)
-- Why fragile:
-  - Three different runtimes (claude, opencode, gemini) have different config paths
-  - OpenCode uses XDG Base Directory spec with environment variable overrides (OPENCODE_CONFIG_DIR, OPENCODE_CONFIG, XDG_CONFIG_HOME)
-  - Gemini uses GEMINI_CONFIG_DIR or ~/.gemini
-  - Claude uses CLAUDE_CONFIG_DIR or ~/.claude
-  - Priority order differs per runtime
-- Common failures:
-  - User sets OPENCODE_CONFIG_DIR but install uses XDG_CONFIG_HOME → wrong location
-  - Switching between local and global installs → path templates conflict
-  - Mixed-mode (some runtimes global, some local) → settings.json paths hard to debug
-- Safe modification:
-  - Document priority order for each runtime clearly
-  - Test with each environment variable combination
-  - Add debug output showing which path was selected and why
-- Test coverage: None (path resolution not tested)
-
-## Scaling Limits
-
-**Single Config.json File:**
-- Current capacity: Config.json holds all project settings (model_profile, commit_docs, branching_strategy, research settings, parallelization, brave_search, plus per-agent overrides)
-- Limit: Breaks when config.json exceeds ~100KB or has 1000+ keys (not realistic but theoretically possible with per-agent model overrides for many agents)
-- Symptoms at limit: Slow load times, merge conflicts in git, hard to debug which setting caused behavior
-- Scaling path: Move per-agent settings to separate file (.planning/agent-overrides.json), archive old config versions
-
-**Phase Directory Enumeration:**
-- Current capacity: Linear scan of .planning/phases directory works well up to ~500 phases
-- Limit: Beyond ~500 phases, repeated scans for phase lookup become slow (especially on network filesystems)
-- Symptoms at limit: `/gsd:progress` and phase listing commands noticeably slow
-- Scaling path: Build .planning/.cache/phase-index.json at project load time, invalidate only when phases/ directory changes (use fs.watch)
-
-**History Digest JSON Size:**
-- Current capacity: Aggregating all SUMMARY.md frontmatter works up to ~100 phases
-- Limit: Beyond 100 phases, JSON grows to 500KB+; entire digest re-parsed every time
-- Symptoms at limit: Planner agent slow to load project history; context window eaten by history
-- Scaling path: Implement rolling window (last 20 phases) or sampling, add compression/summarization of old decisions
-
-## Dependencies at Risk
-
-**Manual YAML Parsing:**
-- Risk: Custom YAML parser in gsd-tools is incomplete and will break as YAML complexity grows
-- Files: `get-shit-done/bin/gsd-tools.cjs` (frontmatter parsing)
-- Impact: Future SUMMARY.md schema additions (comments, complex nesting, flow style) will break parsing
-- Migration plan: When YAML parsing becomes issue, switch to `js-yaml` npm package (small, well-maintained); add as optional dev dependency with fallback to custom parser
-
-**No Dependency Lock (package.json):**
-- Risk: package.json has zero dependencies; makes git hook scripts brittle (rely on Node builtins only)
-  - If Node builtins change (unlikely but happened in past), hooks could break
-  - If new Node version changes JSON.stringify() output or fs behavior, could break
-- Files: `package.json` (line 39: empty dependencies)
-- Impact: Version mismatch if user upgrades Node; edge cases with JSON whitespace breaking frontmatter
-- Migration plan: Consider pinning to Node 16+ in engines field; add integration tests for Node 18, 20, 22
-
-**File Permission Model (Not Windows-Aware):**
-- Risk: Hook scripts assume Unix file permissions; Windows path handling patched but inconsistent
-  - Executable bits not set on .js files (Node runs them anyway, but not POSIX-compliant)
-  - Path backslash handling requires normalization in multiple places
-- Files: `bin/install.js` (lines 194, 1348, 1490)
-- Impact: Hooks might not execute on Windows if anyone tries to run them directly; cross-platform testing needed
-- Migration plan: Add Windows CI job to test full install/uninstall flow on Windows
-
-## Missing Critical Features
-
-**No Configuration Validation on Startup:**
-- Problem: Config.json loaded but not validated against schema; invalid config silently uses defaults
-- Blocks: Can't detect user misconfiguration without running each command and getting vague errors
-- Workaround: `/gsd:health` command now validates, but not run automatically
-
-**No Automatic Config Migration for Version Upgrades:**
-- Problem: When GSD adds new config fields, old config.json doesn't get updated; uses hardcoded defaults
-- Blocks: New features can't rely on config being present
-- Workaround: Manual documentation of required config.json updates in CHANGELOG
-
-**No Rollback Mechanism for Failed Installs:**
-- Problem: If install fails mid-operation, config directory left in inconsistent state
-- Blocks: Retry often fails; user must manually clean up
-- Workaround: Local patch persistence saves modified files, but doesn't restore failed partial installs
-
-**No Multi-Project Config Inheritance:**
-- Problem: Each project has own .planning/config.json; no way to set sane defaults globally
-- Blocks: Users must reconfigure each project (model_profile, branching_strategy, etc.)
-- Fixed in: v1.19.2 (added ~/.gsd/defaults.json), but implementation might be incomplete
+**Synchronous File I/O in State Updates:**
+- Issue: All state writes use `fs.writeFileSync()`, blocking on every config mutation
+- Files: `get-shit-done/bin/gsd-tools.cjs` (lines 642, 687, 755, 1175, etc.)
+- Impact: Phase operations waiting on disk writes; no parallelization possible when batch-updating multiple config fields
+- Risk level: Low for typical use (single phases run sequentially), but noticeable on slower file systems or network shares
+- Improvement path: Switch to async I/O with proper error handling
 
 ## Test Coverage Gaps
 
-**Install/Uninstall Logic:**
-- What's not tested:
-  - Uninstall with custom config-dir paths
-  - Uninstall when files are missing/corrupted
-  - Full round-trip install → modify → update → reapply-patches
-  - Mixed runtime installs (some global, some local)
-- Files: `bin/install.js` (1816 lines, functions from line 811 onward)
-- Risk: Uninstall could accidentally delete user files if safe removal isn't correct
-- Priority: High (destructive operations)
+**gsd-tools.cjs Test Coverage Incomplete:**
+- Issue: `gsd-tools.test.cjs` exists (2346 lines) but test file is 45% of tool size; many commands untested
+- Files: `get-shit-done/bin/gsd-tools.cjs`, `get-shit-done/bin/gsd-tools.test.cjs`
+- Impact: Commands like `frontmatter merge`, `template fill`, `verify artifacts`, `history digest` lack unit tests; integration bugs may hide
+- Risk: Medium — tested commands are core (state, roadmap), but edge cases in lesser-used commands could break phases
 
-**gsd-tools CLI Commands:**
-- What's not tested:
-  - phase add/insert/remove with edge cases (last phase, decimal boundaries)
-  - roadmap update-plan-progress accuracy
-  - milestone complete with empty phases
-  - All state progression commands (record-metric, add-decision, record-session)
-  - verify commands with malformed inputs
-  - Concurrent gsd-tools invocations (race conditions on STATE.md)
-- Files: `get-shit-done/bin/gsd-tools.cjs` (5243 lines)
-- Risk: Data corruption in .planning/ if commands have bugs with edge cases
-- Priority: High (state mutation)
+**Live Claude Code Verification Pending:**
+- Issue: Six phase 2 and 4 behaviors require live Claude Code session verification but have not been completed
+- Files: Phases 02-launcher and 04-resume-and-visibility verification documents
+- Impact: No-argument invocation, stale state prompts, YOLO RESUME banner, progress banner, completion summary behavior unverified in real Claude Code context
+- Current status: Architecture tested in isolation; e2e flow not verified against actual Claude Code command evaluation
 
-**Frontmatter Round-Trip Integrity:**
-- What's not tested:
-  - Setting a frontmatter field and reading it back → same value?
-  - Merging frontmatter with complex nested structures
-  - Handling special characters and escaping in values
-  - Reading old SUMMARY.md files with different schema versions
-- Files: `get-shit-done/bin/gsd-tools.cjs` (frontmatter CRUD)
-- Risk: Data loss when planner writes to STATE.md or when archiving milestones
-- Priority: High (all workflows depend on this)
+**Workflow Integration E2E Tests Missing:**
+- Issue: No end-to-end test suite for yolo.md chaining across phases
+- Files: `get-shit-done/workflows/yolo.md` and dependent workflows
+- Impact: STOPPED_PHASE bug (above) was not caught by tests; off-by-one errors in phase tracking, resume logic, and state transitions could silently occur
+- Recommendation: Create integration test harness that simulates multi-phase runs with mock verification failures
 
-**Path Resolution Across Runtimes:**
-- What's not tested:
-  - Each runtime with each environment variable combination
-  - Local vs global install path construction
-  - Symlinks and relative path expansion
-  - Windows vs Linux/Mac path handling
-- Files: `bin/install.js` (getGlobalDir, getOpencodeGlobalDir, expandTilde)
-- Risk: Hooks won't find scripts; install goes to wrong location
-- Priority: Medium (affects all installs)
+## Fragile Areas
 
-**JSONC Parsing Edge Cases:**
-- What's not tested:
-  - Comments before/after every JSON element
-  - Trailing commas in nested structures
-  - Mixed tabs and spaces (should fail gracefully)
-  - Very large files (memory behavior)
-  - Adversarial inputs (ReDoS via regex)
-- Files: `bin/install.js` (parseJsonc, lines 1030-1084)
-- Risk: Malformed config files could hang install or consume memory
-- Priority: Medium (corruption risk, but user-editable files only)
+**Roadmap Parsing Brittle to Format Changes:**
+- Issue: Multiple places parse ROADMAP.md with string matching and jq filters; no schema validation
+- Files: `get-shit-done/bin/gsd-tools.cjs` (roadmap analyze command), yolo.md Phase A2
+- Impact: If ROADMAP.md format drifts (spacing, heading level changes), phase detection breaks silently
+- Current patterns: Markdown heading detection via regex, checkbox parsing via grep, disk_status derivation from SUMMARY file counts
+- Safe modification: Add explicit schema validation layer before relying on parsed output
+
+**Phase Number Renumbering on Delete:**
+- Issue: `phase remove` renumbers all subsequent phases, but running phases may be in-progress; renumbering mid-execution causes state desynchronization
+- Files: `get-shit-done/bin/gsd-tools.cjs` (phase remove command)
+- Impact: If phase 3 is deleted while phase 4 is being executed, phase 4's directory name changes but running plan/execute agents reference old number
+- Risk level: High if triggered during active execution, low during planning phases
+- Safe modification: Prevent phase removal if any phase's PLAN.md or SUMMARY.md is actively being written (check file modification time)
+
+**Verifier and Plan-Checker Timeout Handling:**
+- Issue: Plan-checker and verifier agents run asynchronously via Task() in workflows, but timeout handling is minimal
+- Files: `get-shit-done/workflows/plan-phase.md`, `get-shit-done/workflows/verify-work.md`, `get-shit-done/workflows/transition.md`
+- Impact: If checker/verifier times out, workflow returns partial results; state may be written anyway (phase marked complete but no verification summary)
+- Current mitigation: None explicit; relies on workflow logic to detect missing SUMMARY.md files
+- Fragility: Task() timeout behavior varies by Claude Code version; no explicit retry or checkpoint mechanism
+
+**Frontmatter Validation Order-Dependent:**
+- Issue: Frontmatter field validation checks for required fields but doesn't validate field types, interdependencies, or semantic consistency
+- Files: `get-shit-done/bin/gsd-tools.cjs` (frontmatter validate command)
+- Impact: Invalid PLAN.md or SUMMARY.md frontmatter (e.g., `status: invalid_value`) passes validation; downstream code assumes valid enum values
+- Risk: Medium — affects phase detection and verification flows that depend on status field
+
+**Model Profile Resolution Coupled to CONFIG:**
+- Issue: Model resolution reads from user's global config.json, but agent context includes hardcoded agent → model mappings
+- Files: `get-shit-done/bin/gsd-tools.cjs` (MODEL_PROFILES table), agent definitions
+- Impact: If config.json is missing or doesn't define model_profile, agents fall back to hardcoded defaults; user's preference is silently ignored in some cases
+- Safe modification: Add explicit logging when fallback occurs
+
+## Security Considerations
+
+**Shell Escaping in Git Commands:**
+- Issue: `execGit()` function escapes arguments via regex check `if (/^[a-zA-Z0-9._\-/=:@]+$/)` and shell quoting, but edge cases exist
+- Files: `get-shit-done/bin/gsd-tools.cjs` (execGit function, lines 225-244)
+- Impact: If phase names or slugs contain special characters (quotes, newlines, backticks), git commit messages may inject commands
+- Current mitigation: Phase names are controlled by system (generated from descriptions), but user-provided messages could be vulnerable
+- Risk: Medium — requires malicious input in phase descriptions or custom commit messages
+
+**File Path Traversal in Template Operations:**
+- Issue: `template fill` and frontmatter operations use user-provided file paths without path normalization
+- Files: `get-shit-done/bin/gsd-tools.cjs` (template fill command, frontmatter commands)
+- Impact: Path like `../../.env` could target files outside `.planning/` if passed to frontmatter operations
+- Risk: Low — paths are expected to be generated by orchestrator, not user-input, but input validation missing
+
+**No Secret Redaction in Error Messages:**
+- Issue: Error output from execSync (git, jq) may include environment variable values or API keys if command fails
+- Files: `get-shit-done/bin/gsd-tools.cjs` (error handling, lines 488-489)
+- Impact: If BRAVE_API_KEY or other secrets are embedded in command strings, failure messages expose them to logs/output
+- Current mitigation: Most commands use env vars (not shell args), limiting exposure
+- Fix approach: Redact common secret patterns (API_KEY=, sk-, Bearer) from stderr before output
+
+## Documentation Gaps
+
+**REQUIREMENTS.md Checkbox Updates Not Automated:**
+- Issue: v1 requirements checkboxes in REQUIREMENTS.md remain `[ ]` even after verification passes
+- Files: `.planning/REQUIREMENTS.md`
+- Impact: Users can't quickly see which requirements are satisfied; traceability table is stale
+- Current status: All 10 v1 requirements satisfied per phase VERIFICATIONs, but checkboxes not checked
+- Fix approach: Add final validation step after phase completion that updates REQUIREMENTS.md checkboxes
+
+**No Runbook for YOLO Failure Recovery:**
+- Issue: When YOLO stops on verification gaps, user sees error message but has no documented recovery steps
+- Files: `get-shit-done/workflows/yolo.md` (Case B1 banner), `docs/USER-GUIDE.md`
+- Impact: User may not know to run `plan-phase --gaps --auto` to close gaps before resuming
+- Current mitigation: Case B1 banner adds "To investigate" hint, but full recovery command not documented
+- Fix approach: Link to dedicated recovery guide in stop banner
+
+**Verifier Agent Role Definition Unclear:**
+- Issue: `gsd-verifier` agent file defines verification responsibilities, but boundaries with integration-checker are fuzzy
+- Files: `agents/gsd-verifier.md`, `agents/gsd-integration-checker.md`
+- Impact: Overlapping concerns (requirements coverage, cross-phase wiring, phase-to-phase integration) could lead to duplicate or missed verification
+- Current status: Integration checker handles cross-phase wiring; verifier handles per-phase correctness
+- Safe modification: Add explicit section headers in verifier agent (In Scope / Out of Scope) to clarify phase boundary
+
+## Dependencies at Risk
+
+**No Version Pinning for GSD Tool Installation:**
+- Issue: User runs `npx get-shit-done-cc@latest`, pinning to whatever latest is; major version upgrades may introduce breaking changes
+- Files: `package.json` (version 1.20.3), `bin/install.js`
+- Impact: If breaking change lands in v2, users running `@latest` auto-upgrade without migration path
+- Current mitigation: Installer has version manifest, but downgrade not supported
+- Risk: Low for near term (v1 stable), high if v2 introduces incompatible config format
+
+**esbuild Dependency for Hooks Build:**
+- Issue: Hooks build uses `esbuild ^0.24.0` (caret range); minor version updates could break hook compilation
+- Files: `package.json` (dev dependency), `scripts/build-hooks.js`
+- Impact: Hook build errors would surface at install time, blocking new installations
+- Risk: Low — esbuild is mature, but semantic versioning not strictly observed in 0.x versions
+
+## Scaling Limits
+
+**Phase Numbering Decimal Notation Limits:**
+- Issue: Phase numbering supports decimal notation (e.g., 2.1, 2.1.1) but roadmap parsing assumes specific depth
+- Files: `get-shit-done/bin/gsd-tools.cjs` (normalizePhaseName function, phase comparison logic)
+- Impact: If phase tree grows deeply nested (e.g., 1.2.3.4), roadmap ordering and phase detection could fail
+- Current capacity: Tested to 3+ decimal levels (e.g., phases in audit are numbered 1, 2, 3, 4 flat), but no explicit limit documented
+- Scaling path: Add explicit max-depth validation
+
+**Milestone Archival Doesn't Support Large Phase Counts:**
+- Issue: `milestone complete` reads all phase files and copies them sequentially; no batch operations
+- Files: `get-shit-done/bin/gsd-tools.cjs` (milestone complete command)
+- Impact: Archiving milestone with 50+ phases takes O(n) time; roadmap parsing becomes slow
+- Risk: Low for v1 (5 phases), medium for v2+ if phases grow
+- Improvement path: Use parallel file operations or stream-based copy
+
+## Missing Critical Features
+
+**No Rollback Mechanism for Failed Phase Execution:**
+- Issue: If a phase's PLAN.md is executed but produces incorrect code, there's no undo/rollback
+- Files: All phase execution workflows (`execute-phase.md`, `execute-plan.md`)
+- Impact: User must manually revert git commits or code changes; integration with git is one-directional
+- Current mitigation: Verification step catches errors before advancing, but user bears responsibility for reverting bad code
+- Fix approach: Add `--rollback` flag to phase operations that reverts latest commit + clears phase state
+
+**No Dry-Run Mode for State Operations:**
+- Issue: `yolo-state write`, config updates, and milestone operations execute immediately; no preview of changes
+- Files: `get-shit-done/bin/gsd-tools.cjs` (state commands)
+- Impact: Users can't verify what will change before committing state; risky for automation
+- Risk: Low for manual use, medium for scripted deployments
+- Improvement path: Add `--dry-run` flag that outputs what would change without writing
+
+**No Built-In State Backup Before Major Operations:**
+- Issue: Phase deletions, milestone completions, and phase advances write state without creating backup
+- Files: `get-shit-done/bin/gsd-tools.cjs` (phase remove, milestone complete, phase complete)
+- Impact: Accidental deletion of phase data has no recovery path (except git history)
+- Risk: Medium — user could accidentally delete wrong phase and lose work
+- Fix approach: Auto-backup config.json + relevant phase files before destructive operations
+
+## Technical Debt
+
+**Logging Strategy Missing:**
+- Issue: No centralized logging; errors go to stderr, info goes to stdout, no log levels
+- Files: `get-shit-done/bin/gsd-tools.cjs`, all workflow files
+- Impact: Debugging state machine issues requires manual tracing; no audit trail for automated runs
+- Current pattern: `process.stderr.write()` for errors, `process.stdout.write()` for output, no structured logging
+- Improvement path: Add optional `--debug` flag that writes detailed logs to `.planning/.logs/`
+
+**Markdown Parsing Not Standardized:**
+- Issue: ROADMAP.md, STATE.md, PLAN.md frontmatter parsing uses different regex patterns in different files
+- Files: `get-shit-done/bin/gsd-tools.cjs` (multiple frontmatter parsing implementations)
+- Impact: Changes to markdown format require updates in multiple places; inconsistency in error handling
+- Risk: Medium — regex drift could cause silent parsing failures
+- Improvement path: Extract markdown parsing into standalone utility module with tests
+
+**No Input Validation Layer:**
+- Issue: Commands accept free-form arguments with minimal validation; semantic errors caught late
+- Files: `get-shit-done/bin/gsd-tools.cjs` (command dispatch)
+- Impact: Invalid phase numbers, missing required flags, and malformed JSON arguments produce unhelpful errors
+- Risk: Low impact, high user friction
+- Improvement path: Add schema validation layer (zod or similar) for common argument patterns
+
+**Hardcoded Paths to Home Directory Config:**
+- Issue: References to `~/.claude/`, `~/.opencode/`, `~/.gemini/` scattered throughout installer and tools
+- Files: `bin/install.js`, `get-shit-done/bin/gsd-tools.cjs`, `get-shit-done/workflows/yolo.md`
+- Impact: Changes to config directory structure require updates in multiple places
+- Current concern: No environment variable override for testing or alternative installations
+- Improvement path: Centralize path resolution in a single config module
 
 ---
 
-*Concerns audit: 2026-02-17*
+*Codebase concerns audit: 2026-02-28*

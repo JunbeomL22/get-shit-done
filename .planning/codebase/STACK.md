@@ -1,104 +1,122 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-17
+**Analysis Date:** 2026-02-28
 
 ## Languages
 
 **Primary:**
-- JavaScript (Node.js) - All application code, CLI tools, and runtime agents
-- Markdown - Configuration templates, documentation, and workflow specifications
+- JavaScript (Node.js) - Runtime for CLI tools, build system, and hook scripts
+- CommonJS/ES Modules - Entry points and utilities use both module formats
 
-**Secondary:**
-- YAML - Frontmatter in markdown documents for structured metadata
+**Documentation:**
+- Markdown - All user guides, workflows, and planning documents
+- YAML - Configuration format for tool definitions (Claude Code, OpenCode, Gemini)
 
 ## Runtime
 
 **Environment:**
-- Node.js 16.7.0+ (specified in `package.json` engines field)
-- Cross-platform: Mac, Windows (WSL2), Linux
+- Node.js >= 16.7.0
+- Available versions in test: v22.22.0
 
 **Package Manager:**
-- npm (version unspecified, likely 8.x+)
-- Lockfile: `package-lock.json` present
+- npm >= 6.x
+- Lockfile: `package-lock.json` (present)
 
-## Frameworks & Tools
+## Frameworks
 
-**Core Runtime:**
-- Node.js built-in modules: `fs`, `path`, `os`, `readline`, `crypto`, `child_process`
-- No external runtime dependencies (empty `dependencies` object in `package.json`)
+**Core:**
+- Node.js built-in modules - fs, path, os, readline, crypto, https, child_process
+  - No external framework dependencies in main tools
+  - Designed for maximum portability and minimal dependency weight
 
-**Build/Development:**
-- esbuild ^0.24.0 - Hook bundling (though currently hooks are copied unprocessed)
-- Node.js built-in test runner - Tests use `node --test` (Node 18.0+)
-
-**CLI & Installation:**
-- Custom installer script (`bin/install.js`) - Handles setup for Claude Code, OpenCode, and Gemini CLI
-- Hook system - Pre-built scripts copied to runtime config directories
+**Build/Dev:**
+- esbuild ^0.24.0 - Build system for bundling hooks and tools
+  - Configured in `scripts/build-hooks.js`
+  - Produces CommonJS output in `hooks/dist/`
 
 **Testing:**
-- Node.js native test framework (`node:test`)
-- Assert library - Node.js native `node:assert`
+- Node.js built-in test runner (`node --test`)
+  - Uses `get-shit-done/bin/gsd-tools.test.cjs` for CLI tool testing
 
 ## Key Dependencies
 
 **Production:**
-- None - Pure Node.js implementation
+- Zero runtime production dependencies (fully self-contained)
+  - All standard library dependencies are Node.js builtins
 
 **Development:**
-- esbuild ^0.24.0 - Build tool for hook bundling
+- esbuild ^0.24.0 - Bundling for hook distribution
 
-## Configuration Files
+## Configuration
 
-**Project Configuration:**
-- `package.json` - Package metadata and scripts
-- `.gitignore` - Excludes node_modules, local test installs, build artifacts
+**Environment:**
+- `BRAVE_API_KEY` - Optional API key for Brave Search integration
+  - If not set, fallback to runtime built-in web search
+  - Can also be stored in `~/.gsd/brave_api_key`
+- `CLAUDE_CONFIG_DIR` - Override Claude Code config directory (default: `~/.claude`)
+- `OPENCODE_CONFIG_DIR` / `OPENCODE_CONFIG` - Override OpenCode config directory
+  - Respects XDG Base Directory spec: `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`
+- `GEMINI_CONFIG_DIR` - Override Gemini CLI config directory (default: `~/.gemini`)
 
-**Build Configuration:**
-- `scripts/build-hooks.js` - Hook deployment script
-- Hook output: `hooks/dist/` directory (published to npm)
+**Build:**
+- `scripts/build-hooks.js` - Copies hooks from `hooks/` to `hooks/dist/` for distribution
+- `package.json` - Defines `build:hooks` script run on `prepublishOnly`
 
-## Publishing & Distribution
-
-**NPM Package:**
-- Package name: `get-shit-done-cc`
-- Current version: 1.20.3
-- Registry: npm (npmjs.com)
-- Published files: `bin/`, `commands/`, `get-shit-done/`, `agents/`, `hooks/dist/`, `scripts/`
-
-**Installation Methods:**
-- Global: `npx get-shit-done-cc@latest` - Installs to user config directories
-- Local: `npx get-shit-done-cc --claude --local` - Installs to `./.claude/`
-- Project: `git clone && node bin/install.js --claude --local`
+**Installation Configuration:**
+- `.claude/settings.json` - Per-project Claude Code tool and permission configuration
+- `.config/opencode/` - OpenCode global configuration (XDG-compliant)
+- `.gemini/` - Gemini CLI global configuration
 
 ## Platform Requirements
 
 **Development:**
-- Node.js 16.7.0 or later
-- npm 8.x or later (inferred)
-- Git (for version control integration)
-- POSIX shell or Windows PowerShell (for hook integration)
+- Node.js >= 16.7.0
+- npm >= 6.x
+- Git (for version control operations)
+- jq (optional, for JSON parsing in workflows - auto-installed on first use)
 
-**Production/User Systems:**
-- Node.js 16.7.0+ (as runtime)
-- One of: Claude Code, OpenCode, or Gemini CLI (target runtimes)
-- Git repository (required for GSD workflows)
+**Production:**
+- Node.js >= 16.7.0
+- Supported on: macOS, Windows, Linux
+- No OS-specific dependencies; uses Node.js abstraction layer
 
-## System Architecture
+**Installation Targets:**
+- **Claude Code:** Global `~/.claude/` or local `./.claude/`
+- **OpenCode:** Global `~/.config/opencode/` (XDG-compliant) or local `./.opencode/`
+- **Gemini CLI:** Global `~/.gemini/` or local `./.gemini/`
 
-**Modular Design:**
-- `bin/install.js` - Main installer, handles 3 runtime targets (Claude, OpenCode, Gemini)
-- `get-shit-done/bin/gsd-tools.cjs` - CLI utility centralizing workflow operations (187KB, 5244 lines)
-- `agents/` - Markdown agent definitions (11 specialized agents)
-- `commands/gsd/` - 31 workflow command definitions
-- `hooks/` - Two background hook scripts (update check, statusline display)
+## Distribution
 
-**Installation Process:**
-1. Detects target runtime (Claude Code, OpenCode, or Gemini)
-2. Detects scope (global user config vs. project-local)
-3. Creates directory structure in target config location
-4. Installs hooks into runtime's hook system
-5. Copies templates and workflows
+**Package:**
+- Package name: `get-shit-done-cc`
+- Version: 1.20.3
+- Published to npm
+- Entry point: `bin/install.js` - Interactive installer with multiple runtime support
+- Files included: `bin/`, `commands/`, `get-shit-done/`, `agents/`, `hooks/dist/`, `scripts/`
+
+**Installation Methods:**
+```bash
+npx get-shit-done-cc@latest                    # Interactive install
+npx get-shit-done-cc --claude --global         # Non-interactive: Claude, global
+npx get-shit-done-cc --opencode --global       # Non-interactive: OpenCode, global
+npx get-shit-done-cc --gemini --global         # Non-interactive: Gemini, global
+npx get-shit-done-cc --all --global            # Non-interactive: all runtimes
+```
+
+## External Integrations
+
+**Package Registry:**
+- npm registry - For version checking via `npm view get-shit-done-cc version`
+
+**Network Calls:**
+- GitHub releases API - Download jq binary: `https://github.com/jqlang/jq/releases/download/`
+- npm - Version checking for updates
+
+**Brave Search API:**
+- Optional integration at `https://api.search.brave.com/res/v1/web/search`
+- Requires `BRAVE_API_KEY` environment variable
+- Fallback to runtime built-in web search if not available
 
 ---
 
-*Stack analysis: 2026-02-17*
+*Stack analysis: 2026-02-28*
