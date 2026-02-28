@@ -155,8 +155,127 @@ function cmdConfigGet(cwd, keyPath, raw) {
   output(current, raw, String(current));
 }
 
+function cmdYoloStateRead(cwd, raw) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  let config = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch (err) {
+    // If config is unreadable, treat as empty
+  }
+  const stanza = (config.workflow && config.workflow.yolo) || {};
+  output(stanza, raw, JSON.stringify(stanza));
+}
+
+function cmdYoloStateWrite(cwd, startPhase, raw) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  if (!startPhase) {
+    error('Usage: yolo-state write --start-phase <phase>');
+  }
+
+  let config = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch (err) {
+    error('Failed to read config.json: ' + err.message);
+  }
+
+  if (!config.workflow) config.workflow = {};
+  config.workflow.yolo = {
+    active: true,
+    start_phase: startPhase,
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (err) {
+    error('Failed to write config.json: ' + err.message);
+  }
+
+  // Read-after-write verification
+  try {
+    const verified = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const yolo = verified.workflow && verified.workflow.yolo;
+    if (!yolo || yolo.active !== true || yolo.start_phase !== startPhase) {
+      error('Verification failed: yolo state not written correctly');
+    }
+  } catch (err) {
+    error('Verification failed: ' + err.message);
+  }
+
+  output(config.workflow.yolo, raw, JSON.stringify(config.workflow.yolo));
+}
+
+function cmdYoloStateFail(cwd, phase, reason, raw) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  if (!phase) {
+    error('Usage: yolo-state fail --phase <phase> --reason <reason>');
+  }
+
+  let config = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch (err) {
+    error('Failed to read config.json: ' + err.message);
+  }
+
+  if (!config.workflow) config.workflow = {};
+  if (!config.workflow.yolo) config.workflow.yolo = {};
+  config.workflow.yolo.active = false;
+  config.workflow.yolo.failed_phase = phase;
+  config.workflow.yolo.failure_reason = reason || '';
+
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (err) {
+    error('Failed to write config.json: ' + err.message);
+  }
+
+  output(config.workflow.yolo, raw, JSON.stringify(config.workflow.yolo));
+}
+
+function cmdYoloStateClear(cwd, raw) {
+  const configPath = path.join(cwd, '.planning', 'config.json');
+  let config = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch (err) {
+    error('Failed to read config.json: ' + err.message);
+  }
+
+  if (!config.workflow || !config.workflow.yolo) {
+    const result = { cleared: false, reason: 'no_stanza' };
+    output(result, raw, JSON.stringify(result));
+    return;
+  }
+
+  delete config.workflow.yolo;
+
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (err) {
+    error('Failed to write config.json: ' + err.message);
+  }
+
+  const result = { cleared: true };
+  output(result, raw, JSON.stringify(result));
+}
+
 module.exports = {
   cmdConfigEnsureSection,
   cmdConfigSet,
   cmdConfigGet,
+  cmdYoloStateRead,
+  cmdYoloStateWrite,
+  cmdYoloStateFail,
+  cmdYoloStateClear,
 };

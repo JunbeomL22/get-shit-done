@@ -172,7 +172,7 @@ async function main() {
   const command = args[0];
 
   if (!command) {
-    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, init');
+    error('Usage: gsd-tools <command> [args] [--raw] [--cwd <path>]\nCommands: state, resolve-model, find-phase, commit, verify-summary, verify, frontmatter, template, generate-slug, current-timestamp, list-todos, verify-path-exists, config-ensure-section, yolo-state, init');
   }
 
   switch (command) {
@@ -375,6 +375,25 @@ async function main() {
 
     case 'config-get': {
       config.cmdConfigGet(cwd, args[1], raw);
+      break;
+    }
+
+    case 'yolo-state': {
+      const subcommand = args[1];
+      if (subcommand === 'read') {
+        config.cmdYoloStateRead(cwd, raw);
+      } else if (subcommand === 'write') {
+        const startPhaseIdx = args.indexOf('--start-phase');
+        config.cmdYoloStateWrite(cwd, startPhaseIdx !== -1 ? args[startPhaseIdx + 1] : null, raw);
+      } else if (subcommand === 'fail') {
+        const phaseIdx = args.indexOf('--phase');
+        const reasonIdx = args.indexOf('--reason');
+        config.cmdYoloStateFail(cwd, phaseIdx !== -1 ? args[phaseIdx + 1] : null, reasonIdx !== -1 ? args[reasonIdx + 1] : null, raw);
+      } else if (subcommand === 'clear') {
+        config.cmdYoloStateClear(cwd, raw);
+      } else {
+        error('Unknown yolo-state subcommand. Available: read, write, fail, clear');
+      }
       break;
     }
 
