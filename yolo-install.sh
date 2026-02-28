@@ -126,4 +126,4 @@ install_jq
 
 echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-node "${SCRIPT_DIR}/bin/install.js" --skip-jq "$@"
+node "${SCRIPT_DIR}/bin/install.js" "$@"
