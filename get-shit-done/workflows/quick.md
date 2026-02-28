@@ -43,7 +43,7 @@ If `$FULL_MODE`:
 **Step 2: Initialize**
 
 ```bash
-INIT=$(node ~/.claude/get-shit-done/bin/gsd-tools.cjs init quick "$DESCRIPTION")
+INIT=$(node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" init quick "$DESCRIPTION")
 ```
 
 Parse JSON for: `planner_model`, `executor_model`, `checker_model`, `verifier_model`, `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
@@ -96,8 +96,12 @@ Task(
 **Directory:** ${QUICK_DIR}
 **Description:** ${DESCRIPTION}
 
-**Project State:**
-@.planning/STATE.md
+<files_to_read>
+- .planning/STATE.md (Project State)
+- ./CLAUDE.md (if exists — follow project-specific guidelines)
+</files_to_read>
+
+**Project skills:** Check .claude/skills/ or .agents/skills/ directory (if either exists) — read SKILL.md files, plans should account for project skill rules
 
 </planning_context>
 
@@ -143,10 +147,6 @@ Display banner:
 ◆ Spawning plan checker...
 ```
 
-```bash
-PLAN_CONTENT=$(cat "${QUICK_DIR}/${next_num}-PLAN.md" 2>/dev/null)
-```
-
 Checker prompt:
 
 ```markdown
@@ -154,7 +154,9 @@ Checker prompt:
 **Mode:** quick-full
 **Task Description:** ${DESCRIPTION}
 
-**Plan to verify:** ${PLAN_CONTENT}
+<files_to_read>
+- ${QUICK_DIR}/${next_num}-PLAN.md (Plan to verify)
+</files_to_read>
 
 **Scope:** This is a quick task, not a full phase. Skip checks that require a ROADMAP phase goal.
 </verification_context>
@@ -197,17 +199,16 @@ Track `iteration_count` (starts at 1 after initial plan + check).
 
 Display: `Sending back to planner for revision... (iteration ${N}/2)`
 
-```bash
-PLAN_CONTENT=$(cat "${QUICK_DIR}/${next_num}-PLAN.md" 2>/dev/null)
-```
-
 Revision prompt:
 
 ```markdown
 <revision_context>
 **Mode:** quick-full (revision)
 
-**Existing plan:** ${PLAN_CONTENT}
+<files_to_read>
+- ${QUICK_DIR}/${next_num}-PLAN.md (Existing plan)
+</files_to_read>
+
 **Checker issues:** ${structured_issues_from_checker}
 
 </revision_context>
@@ -247,8 +248,12 @@ Task(
   prompt="
 Execute quick task ${next_num}.
 
-Plan: @${QUICK_DIR}/${next_num}-PLAN.md
-Project state: @.planning/STATE.md
+<files_to_read>
+- ${QUICK_DIR}/${next_num}-PLAN.md (Plan)
+- .planning/STATE.md (Project state)
+- ./CLAUDE.md (Project instructions, if exists)
+- .claude/skills/ or .agents/skills/ (Project skills, if either exists — list skills, read SKILL.md for each, follow relevant rules during implementation)
+</files_to_read>
 
 <constraints>
 - Execute all tasks in the plan
@@ -294,7 +299,11 @@ Task(
   prompt="Verify quick task goal achievement.
 Task directory: ${QUICK_DIR}
 Task goal: ${DESCRIPTION}
-Plan: @${QUICK_DIR}/${next_num}-PLAN.md
+
+<files_to_read>
+- ${QUICK_DIR}/${next_num}-PLAN.md (Plan)
+</files_to_read>
+
 Check must_haves against actual codebase. Create VERIFICATION.md at ${QUICK_DIR}/${next_num}-VERIFICATION.md.",
   subagent_type="gsd-verifier",
   model="{verifier_model}",
@@ -383,7 +392,7 @@ Build file list:
 - If `$FULL_MODE` and verification file exists: `${QUICK_DIR}/${next_num}-VERIFICATION.md`
 
 ```bash
-node ~/.claude/get-shit-done/bin/gsd-tools.cjs commit "docs(quick-${next_num}): ${DESCRIPTION}" --files ${file_list}
+node "$HOME/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs(quick-${next_num}): ${DESCRIPTION}" --files ${file_list}
 ```
 
 Get final commit hash:
