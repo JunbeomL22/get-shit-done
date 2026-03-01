@@ -384,7 +384,7 @@ Display progress banner:
 Phase {completed_phase} complete. Advancing to Phase {next_phase}: {next_phase_name}
 ```
 
-Exit skill and invoke SlashCommand("/gsd:plan-phase [X+1] --auto")
+**Return to YOLO orchestrator** — do NOT chain via SlashCommand. Exit the skill now. The YOLO orchestrator loop will spawn a fresh Task() for the next phase, giving it a clean 200K context window.
 
 </if>
 

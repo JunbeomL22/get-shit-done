@@ -286,21 +286,35 @@ Display confirmation: "◆ YOLO state written — launching phase ${NEXT_PHASE}.
 
 ---
 
-## Phase C: Launch and Monitor
+## Phase C: Launch and Monitor (Per-Phase Loop)
 
-Spawn plan-phase as a subagent Task with `--auto` flag to propagate the auto-advance chain:
+**Architecture: Each phase gets a fresh 200K context window.** The YOLO orchestrator loops here, spawning one Task() per phase. This prevents context exhaustion that occurs when phases chain inside a single subagent.
+
+### C0. Phase Loop
+
+Set `CURRENT_PHASE=${NEXT_PHASE}`.
+
+**Loop start:**
+
+Display:
+
+```
+◆ Launching Phase ${CURRENT_PHASE} in fresh context...
+```
+
+Spawn plan-phase as a subagent Task with `--auto` flag:
 
 ```
 Task(
-  prompt="Run /gsd:plan-phase ${NEXT_PHASE} --auto",
+  prompt="Run /gsd:plan-phase ${CURRENT_PHASE} --auto",
   subagent_type="general-purpose",
-  description="YOLO: Phase ${NEXT_PHASE}"
+  description="YOLO: Phase ${CURRENT_PHASE}"
 )
 ```
 
-### C1. Post-Chain State Analysis
+### C1. Post-Phase State Analysis
 
-After Task() returns, determine what happened by reading disk state. Do NOT parse the Task() return text — it is unreliable across different chain termination points.
+After Task() returns, determine what happened by reading disk state. Do NOT parse the Task() return text — it is unreliable.
 
 **Read roadmap state:**
 
@@ -336,11 +350,37 @@ Chain complete. All phases finished.
 
 Stop. Return to user.
 
-**Case B: Chain Stopped — Determine Why**
+**Case B: Phase Complete, More Remain — Loop**
 
-Condition: `ALL_DONE` is false (next_phase exists). The chain stopped before completing all phases.
+Condition: `ALL_DONE` is false AND the phase that just ran (`CURRENT_PHASE`) is now marked `roadmap_complete == true` in the ANALYZE phases array.
 
-Determine the stopped phase by scanning the phases array for the first phase with `disk_status == "complete"` AND `roadmap_complete == false`. This uniquely identifies a phase where all plans executed (SUMMARYs written) but verification failed (phase complete never called).
+Check:
+
+```bash
+PHASE_DONE=$(echo "$ANALYZE" | jq -r --argjson phase "$CURRENT_PHASE" '
+  .phases[] | select(.number == $phase) | .roadmap_complete
+')
+```
+
+If `PHASE_DONE` is "true": the phase completed successfully and transition.md returned control.
+
+Update loop variable: `CURRENT_PHASE=$(echo "$ANALYZE" | jq -r '.next_phase')`.
+
+Display progress:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GSD ► YOLO — Phase ${COMPLETED} of ${TOTAL} complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Go back to C0 (loop start)** — spawn a fresh Task() for the next phase.
+
+**Case C: Phase Stopped — Determine Why**
+
+Condition: `ALL_DONE` is false AND `PHASE_DONE` is NOT "true". The phase did not complete.
+
+Determine the stopped phase by scanning for incomplete work:
 
 ```bash
 STOPPED_PHASE=$(echo "$ANALYZE" | jq -r '
@@ -350,11 +390,11 @@ STOPPED_PHASE=$(echo "$ANALYZE" | jq -r '
 ' | head -1)
 ```
 
-Fallback: if no phase matches (unexpected stop before summaries were written), use `next_phase`:
+Fallback: if no phase matches (unexpected stop before summaries were written), use `CURRENT_PHASE`:
 
 ```bash
 if [ -z "$STOPPED_PHASE" ]; then
-  STOPPED_PHASE=$(echo "$ANALYZE" | jq -r '.next_phase // empty')
+  STOPPED_PHASE="${CURRENT_PHASE}"
 fi
 ```
 
@@ -364,7 +404,7 @@ Compute session summary for display:
 COMPLETED=$(echo "$ANALYZE" | jq -r '.completed_phases')
 TOTAL=$(echo "$ANALYZE" | jq -r '.phase_count')
 
-# Elapsed time from YOLO stanza timestamp (read in C1 as YOLO_STATE)
+# Elapsed time from YOLO stanza timestamp
 YOLO_TS=$(echo "$YOLO_STATE" | jq -r '.timestamp // ""')
 START_EPOCH=$(date -d "$YOLO_TS" +%s 2>/dev/null)
 if [ -n "$START_EPOCH" ]; then
@@ -386,7 +426,7 @@ PHASE_DIR=$(ls -d ".planning/phases/${PADDED}-"* 2>/dev/null | head -1)
 VERIFY_FILE="${PHASE_DIR}/${PADDED}-VERIFICATION.md"
 ```
 
-**Case B1: Verification failure (FAIL-01, FAIL-02)**
+**Case C1: Verification failure (FAIL-01, FAIL-02)**
 
 Condition: `VERIFY_FILE` exists AND contains `status: gaps_found` (or similar indication of verification gaps).
 
@@ -417,9 +457,9 @@ YOLO state preserved. See {VERIFY_FILE} for full report.
 To investigate: `/gsd:plan-phase {STOPPED_PHASE} --gaps`
 ```
 
-Stop. Do NOT auto-retry.
+Stop. Do NOT auto-retry. **Exit loop.**
 
-**Case B2: Unexpected error**
+**Case C2: Unexpected error**
 
 Condition: Chain stopped but VERIFICATION.md does not exist for the stopped phase, OR VERIFICATION.md exists with a status other than `gaps_found`.
 
@@ -430,25 +470,31 @@ node ~/.claude/get-shit-done/bin/gsd-tools.cjs yolo-state fail --phase "${STOPPE
 node ~/.claude/get-shit-done/bin/gsd-tools.cjs config-set workflow.auto_advance false
 ```
 
-Display unexpected error banner (locked decision: show raw error, suggest manual investigation):
+Display unexpected error banner:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  GSD ► YOLO STOPPED — Unexpected Error
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+Session: {COMPLETED} of {TOTAL} phases completed — {ELAPSED} elapsed
+
 The chain stopped at Phase {STOPPED_PHASE} without producing verification results.
 
+Phase {CURRENT_PHASE} context exhausted its context window before completing.
 This may be an agent crash, tool failure, or planning failure.
 Investigate manually starting from Phase {STOPPED_PHASE}.
 
 YOLO state preserved at Phase {STOPPED_PHASE}.
+
+To continue, run `/gsd:yolo` again — it will offer to resume from Phase {STOPPED_PHASE}.
 ```
 
-Stop. Do NOT auto-retry.
+Stop. Do NOT auto-retry. **Exit loop.**
 
 **Constraints:**
 - Do NOT use `config-set` on `workflow.research`, `workflow.plan_check`, or `workflow.verifier`
 - Do NOT parse Task() return text for chain outcome detection — always use disk state (roadmap analyze, yolo-state read, VERIFICATION.md)
+- Each phase MUST get its own Task() — never chain phases inside a single subagent context
 
 </process>
